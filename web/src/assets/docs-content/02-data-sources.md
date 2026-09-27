@@ -55,6 +55,46 @@ TSETMC صندوق‌ها را در گروه ۶۸ قرار می‌دهد، اما
 
 
 <svg class="dg" viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="قیف شناسایی صندوق‌ها">
+  <style>
+    :root {
+      --bg:#f7fafb; --surface:#ffffff; --line:#9fb6bc; --text:#16303a; --muted:#5b7680;
+      --src:#e9f3ee; --src-line:#58a37b; --core:#e3eff2; --core-line:#2c7486;
+      --store:#fbf0dd; --store-line:#d98e1f; --serve:#efeaf7; --serve-line:#7a62b3;
+      --arrow:#5b7680; --hot:#d98e1f;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#151f24; --surface:#1b272d; --line:#3c525a; --text:#e2ecef; --muted:#9ab0b7;
+        --src:#16302a; --src-line:#5cc48a; --core:#15313a; --core-line:#4fb3c4;
+        --store:#33291a; --store-line:#f0b04f; --serve:#262036; --serve-line:#a58ee0;
+        --arrow:#8aa3ab; --hot:#f0b04f;
+      }
+    }
+    .dg-bg   { fill: var(--bg); }
+    text     { font-family: "Vazirmatn", "Segoe UI", Tahoma, sans-serif; fill: var(--text); direction: rtl; unicode-bidi: plaintext; }
+    .t-title { font-size: 16px; font-weight: 700; }
+    .t-body  { font-size: 13px; }
+    .t-small { font-size: 11.5px; fill: var(--muted); }
+    .t-mono  { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; fill: var(--muted); direction: ltr; }
+    .t-zone  { font-size: 11px; font-weight: 700; fill: var(--muted); letter-spacing: .02em; }
+    .box     { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+    .src     { fill: var(--src);   stroke: var(--src-line);   stroke-width: 1.4; }
+    .core    { fill: var(--core);  stroke: var(--core-line);  stroke-width: 1.4; }
+    .store   { fill: var(--store); stroke: var(--store-line); stroke-width: 1.4; }
+    .serve   { fill: var(--serve); stroke: var(--serve-line); stroke-width: 1.4; }
+    .zone    { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 5 4; }
+    .edge    { fill: none; stroke: var(--arrow); stroke-width: 1.5; }
+    .edge.dash { stroke-dasharray: 5 4; }
+    .edge.hot  { stroke: var(--hot); stroke-width: 2; }
+    .arrowhead { fill: var(--arrow); }
+    .arrowhead.hot { fill: var(--hot); }
+    .bar-src   { fill: var(--src-line); }
+    .bar-core  { fill: var(--core-line); }
+    .bar-store { fill: var(--store-line); }
+    .bar-serve { fill: var(--serve-line); }
+    .grid-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+  </style>
+  <rect class="dg-bg" x="0" y="0" width="960" height="300" rx="16"/>
   <!-- funnel bars: right-aligned, width ∝ log-ish scale for readability -->
   <text class="t-title" x="940" y="28" text-anchor="start">از کل بازار تا صندوق‌های سهامی (داده‌ی واقعی ۲ مهر ۱۴۰۵)</text>
   <rect class="box" x="140" y="48" width="800" height="40" rx="8"/>

@@ -7,7 +7,16 @@
 - اطلاعات پایه‌ی صندوق‌ها (نوع، تعداد واحد، خالص دارایی) هر روز از اطلاعات نماد در TSETMC تکمیل می‌شود.
 - یک پنل وب (React + ECharts) تصویر کلی بازار صندوق‌ها را نشان می‌دهد.
 
-![پنل کاربری](docs/assets/screens/overview-light.webp)
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screens/overview-light.webp" alt="نمای کلی پنل"/><br/><sub>نمای کلی: کاشی‌های شاخص و نقشه‌ی بازار، روی داده‌ی واقعی پایان یک جلسه</sub></td>
+<td width="50%"><img src="docs/assets/screens/treemap.webp" alt="نقشه‌ی بازار صندوق‌ها"/><br/><sub>نقشه‌ی بازار: مساحت هر خانه = خالص دارایی، رنگ = تغییر قیمت امروز</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/screens/money-map.webp" alt="نقشه‌ی پول و ارزش‌گذاری"/><br/><sub>نقشه‌ی پول: پول حقیقی دنبال صندوق‌های گران می‌رود یا ارزان</sub></td>
+<td width="50%"><img src="docs/assets/screens/docs-tab.webp" alt="تب مستندات داخل پنل"/><br/><sub>مستندات کامل سرویس، داخل همین پنل — بدون سرویس جدا</sub></td>
+</tr>
+</table>
 
 > **مستندات کامل** همین پنل است: تب «مستندات» (بدون سرویس جدا) همان ۱۲ سند و همه‌ی ADRها را نمایش می‌دهد، با تصویر و نمودار. متن خام همان فایل‌ها در پوشه‌ی [`docs/`](docs/index.md) است؛ برای مرور آن با قالب MkDocs: `make docs-serve`.
 

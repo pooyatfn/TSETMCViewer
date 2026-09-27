@@ -9,8 +9,8 @@
   <div class="kpi"><b>۳ میلی‌ثانیه</b><span>میانه‌ی زمان اعتبارسنجی ۱۵۰ صندوق</span></div>
 </div>
 
-<figure class="diagram">
---8<-- "assets/diagrams/validation.svg"
+<figure class="diagram" markdown>
+![مراحل اعتبارسنجی هر چرخه](assets/diagrams/validation.svg)
 <figcaption>شکل ۱ — چهار گروه بررسی روی تیک‌های هر چرخه، به ترتیب. هر بررسی تیک فعلی را با قواعد بازار و با تیک قبلی همان صندوق مقایسه می‌کند.</figcaption>
 </figure>
 
@@ -77,8 +77,8 @@
 
 ## پر کردن شکاف و ثبت لبه‌ای، در عمل
 
-<figure class="diagram">
---8<-- "assets/diagrams/quality-timelines.svg"
+<figure class="diagram" markdown>
+![پر کردن شکاف و ثبت لبه‌ای](assets/diagrams/quality-timelines.svg)
 <figcaption>شکل ۲ — بالا: سه دقیقه‌ی جاافتاده با مقدار آخرین تیک واقعی پر می‌شوند. پایین: NAV کهنه در هر تیک پرچم می‌خورد، اما در شروع هر رخداد فقط یک ردیف گزارش ساخته می‌شود.</figcaption>
 </figure>
 

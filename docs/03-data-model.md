@@ -2,8 +2,8 @@
 
 <p class="lead">جدول‌ها، کلیدها و موتورهای ClickHouse، و دلیل هر انتخاب. طرح‌واره فقط با فایل‌های مایگریشن تغییر می‌کند (<a href="../adr/0005-migrations.md">ADR 0005</a>) و این صفحه نسخه‌ی خوانای همان فایل‌هاست.</p>
 
-<figure class="diagram">
---8<-- "assets/diagrams/data-model.svg"
+<figure class="diagram" markdown>
+![مدل داده](assets/diagrams/data-model.svg)
 <figcaption>شکل ۱ — سه دسته جدول: مرجع (روزانه)، سری زمانی (دقیقه‌ای)، و عملیات و ممیزی. <code>run_id</code> هر ردیف تمیز را به چرخه و پاسخ خامی که آن را ساخته وصل می‌کند.</figcaption>
 </figure>
 

@@ -108,8 +108,8 @@ hide:
 
 ## معماری در یک نگاه
 
-<figure class="diagram">
---8<-- "assets/diagrams/architecture.svg"
+<figure class="diagram" markdown>
+![معماری کلی سرویس](assets/diagrams/architecture.svg)
 <figcaption>جریان داده از راست به چپ: منبع ← دریافت و پردازش ← ذخیره‌سازی ← API و کش ← پنل. رویداد «تیک جدید» (خط نارنجی) کش را باطل می‌کند و داده‌ی تازه را به پنل می‌فرستد.</figcaption>
 </figure>
 

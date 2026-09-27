@@ -29,8 +29,8 @@
 
 ## تصمیم
 
-<figure class="diagram">
---8<-- "assets/diagrams/caching.svg"
+<figure class="diagram" markdown>
+![لایه‌های کش](../assets/diagrams/caching.svg)
 <figcaption>شش لایه‌ی کش. خط نارنجی مسیر رویداد «تیک N» است که کش‌ها را به‌صورت ضمنی باطل می‌کند.</figcaption>
 </figure>
 

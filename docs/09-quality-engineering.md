@@ -59,8 +59,8 @@
 
 ## CI
 
-<figure class="diagram">
---8<-- "assets/diagrams/ci-pipeline.svg"
+<figure class="diagram" markdown>
+![مراحل CI: یک رویداد، سه کار موازی و یک آزمون دود](assets/diagrams/ci-pipeline.svg)
 <figcaption>شکل ۱ — هر push و PR سه کار موازی دارد. آزمون دود فقط وقتی اجرا می‌شود که کد پایتون و پنل سالم باشند، چون ساخت ایمیج‌ها گران‌ترین مرحله است.</figcaption>
 </figure>
 
@@ -133,8 +133,8 @@ $ curl -s localhost:8000/health | jq
 
 `scripts/loadtest.py` چند کاربر مجازی می‌سازد که هر کدام مثل مرورگر، شش endpoint داشبورد را پشت سر هم و پیوسته درخواست می‌کنند. نتایج روی داده‌ی واقعی (۱۵۹ صندوق و ۴۰۰ روز تاریخچه)، یک پروسه‌ی uvicorn و ۲ هسته‌ی پردازنده، **با ClickHouse و مولد بار روی همان ماشین**:
 
-<figure class="diagram">
---8<-- "assets/diagrams/load-test.svg"
+<figure class="diagram" markdown>
+![نتیجه‌ی آزمون بار: توان عملیاتی و زمان پاسخ در سه حالت کش](assets/diagrams/load-test.svg)
 <figcaption>شکل ۲ — با کش، توان عملیاتی ۶ تا ۷ برابر و زمان پاسخ حدود ۱۰ برابر بهتر می‌شود. در حالت ETag، مرورگر پاسخ ۳۰۴ بدون بدنه می‌گیرد.</figcaption>
 </figure>
 

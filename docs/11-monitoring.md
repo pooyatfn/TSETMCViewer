@@ -9,8 +9,8 @@
   <div class="kpi"><b>۰</b><span>رمز در فایل‌های پیکربندی؛ همه در ‎.env</span></div>
 </div>
 
-<figure class="diagram">
---8<-- "assets/diagrams/monitoring.svg"
+<figure class="diagram" markdown>
+![معماری پایش و هشدار](assets/diagrams/monitoring.svg)
 <figcaption>شکل ۱ — هر سرویس خودش <code>/metrics</code> دارد و exporter جداگانه‌ای لازم نیست؛ ClickHouse هم خروجی داخلی خودش را دارد. خط نارنجی مسیر هشدار است.</figcaption>
 </figure>
 
