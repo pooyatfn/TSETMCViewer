@@ -1,0 +1,92 @@
+<svg class="dg" viewBox="0 0 960 436" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="معماری کلی سرویس">
+  <defs>
+    <marker id="arch-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <marker id="arch-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead hot" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <!-- zones (right → left: sources, ingest, store, serve, present) -->
+  <rect class="zone" x="795" y="30" width="155" height="370" rx="14"/>
+  <text class="t-zone" x="872" y="52" text-anchor="middle">منابع داده</text>
+  <rect class="zone" x="560" y="30" width="220" height="370" rx="14"/>
+  <text class="t-zone" x="670" y="52" text-anchor="middle">دریافت و پردازش</text>
+  <rect class="zone" x="335" y="30" width="210" height="370" rx="14"/>
+  <text class="t-zone" x="440" y="52" text-anchor="middle">ذخیره‌سازی</text>
+  <rect class="zone" x="135" y="30" width="185" height="370" rx="14"/>
+  <text class="t-zone" x="227" y="52" text-anchor="middle">ارائه</text>
+  <rect class="zone" x="10" y="30" width="112" height="370" rx="14"/>
+  <text class="t-zone" x="66" y="52" text-anchor="middle">کاربر</text>
+  <!-- sources -->
+  <rect class="src" x="808" y="80" width="130" height="118" rx="10"/>
+  <text class="t-title" x="873" y="106" text-anchor="middle">TSETMC</text>
+  <text class="t-small" x="873" y="124" text-anchor="middle">هر دقیقه</text>
+  <text class="t-body" x="873" y="148" text-anchor="middle">دیده‌بان بازار</text>
+  <text class="t-body" x="873" y="166" text-anchor="middle">حقیقی / حقوقی</text>
+  <text class="t-body" x="873" y="184" text-anchor="middle">ارزش خالص (NAV)</text>
+  <rect class="src" x="808" y="230" width="130" height="100" rx="10"/>
+  <text class="t-title" x="873" y="256" text-anchor="middle">TSETMC</text>
+  <text class="t-small" x="873" y="274" text-anchor="middle">روزانه، پیش از بازگشایی</text>
+  <text class="t-body" x="873" y="298" text-anchor="middle">اطلاعات نماد</text>
+  <text class="t-body" x="873" y="316" text-anchor="middle">نوع صندوق، تعداد واحد</text>
+  <!-- collector -->
+  <rect class="core" x="575" y="70" width="190" height="280" rx="12"/>
+  <text class="t-title" x="670" y="96" text-anchor="middle">collector</text>
+  <text class="t-small" x="670" y="113" text-anchor="middle">هم‌تراز با دقیقه · asyncio</text>
+  <g class="t-body">
+    <rect class="box" x="590" y="126" width="160" height="28" rx="7"/>
+    <text x="670" y="145" text-anchor="middle">۱ – دریافت موازی</text>
+    <rect class="box" x="590" y="162" width="160" height="28" rx="7"/>
+    <text x="670" y="181" text-anchor="middle">۲ – ذخیره‌ی پاسخ خام</text>
+    <rect class="box" x="590" y="198" width="160" height="28" rx="7"/>
+    <text x="670" y="217" text-anchor="middle">۳ – پارس و فیلتر صندوق‌ها</text>
+    <rect class="box" x="590" y="234" width="160" height="28" rx="7"/>
+    <text x="670" y="253" text-anchor="middle">۴ – اعتبارسنجی و اصلاح</text>
+    <rect class="box" x="590" y="270" width="160" height="28" rx="7"/>
+    <text x="670" y="289" text-anchor="middle">۵ – نوشتن دسته‌ای</text>
+    <rect class="box" x="590" y="306" width="160" height="28" rx="7"/>
+    <text x="670" y="325" text-anchor="middle">۶ – اعلام «تیک جدید»</text>
+  </g>
+  <!-- ClickHouse -->
+  <path class="store" d="M350,92 a90,16 0 0,1 180,0 v250 a90,16 0 0,1 -180,0 z"/>
+  <path class="store" d="M350,92 a90,16 0 0,0 180,0"/>
+  <text class="t-title" x="440" y="134" text-anchor="middle">ClickHouse</text>
+  <text class="t-mono" x="440" y="162" text-anchor="middle">raw_snapshots</text>
+  <text class="t-mono" x="440" y="182" text-anchor="middle">fund_ticks</text>
+  <text class="t-mono" x="440" y="202" text-anchor="middle">funds · fund_daily</text>
+  <text class="t-mono" x="440" y="222" text-anchor="middle">data_quality_log</text>
+  <text class="t-mono" x="440" y="242" text-anchor="middle">collection_runs</text>
+  <line class="grid-line" x1="370" y1="262" x2="510" y2="262"/>
+  <text class="t-body" x="440" y="286" text-anchor="middle">Materialized Views</text>
+  <text class="t-small" x="440" y="304" text-anchor="middle">تجمیع روزانه و درون‌روز</text>
+  <!-- serve -->
+  <rect class="serve" x="148" y="80" width="160" height="112" rx="10"/>
+  <text class="t-title" x="228" y="108" text-anchor="middle">FastAPI</text>
+  <text class="t-body" x="228" y="132" text-anchor="middle">REST + SSE</text>
+  <text class="t-small" x="228" y="152" text-anchor="middle">اعتبارسنجی پاسخ با Pydantic</text>
+  <text class="t-small" x="228" y="170" text-anchor="middle">مستندات خودکار Swagger</text>
+  <rect class="serve" x="148" y="236" width="160" height="96" rx="10"/>
+  <text class="t-title" x="228" y="264" text-anchor="middle">Redis</text>
+  <text class="t-body" x="228" y="288" text-anchor="middle">کش پاسخ‌ها</text>
+  <text class="t-small" x="228" y="308" text-anchor="middle">کانال رویداد «تیک جدید»</text>
+  <!-- panel -->
+  <rect class="box" x="20" y="120" width="92" height="150" rx="10"/>
+  <text class="t-title" x="66" y="150" text-anchor="middle">پنل وب</text>
+  <text class="t-small" x="66" y="172" text-anchor="middle">React</text>
+  <text class="t-small" x="66" y="190" text-anchor="middle">ECharts</text>
+  <rect x="34" y="208" width="10" height="40" rx="2" class="bar-core"/>
+  <rect x="50" y="222" width="10" height="26" rx="2" class="bar-store"/>
+  <rect x="66" y="200" width="10" height="48" rx="2" class="bar-src"/>
+  <rect x="82" y="214" width="10" height="34" rx="2" class="bar-serve"/>
+  <!-- edges -->
+  <path class="edge" d="M808,139 L767,139" marker-end="url(#arch-a)"/>
+  <path class="edge dash" d="M808,280 L767,280" marker-end="url(#arch-a)"/>
+  <path class="edge" d="M575,210 L532,210" marker-end="url(#arch-a)"/>
+  <path class="edge" d="M350,150 L310,150" marker-end="url(#arch-a)"/>
+  <path class="edge" d="M148,195 L114,195" marker-end="url(#arch-a)"/>
+  <path class="edge dash" d="M228,236 L228,194" marker-end="url(#arch-a)" marker-start="url(#arch-a)"/>
+  <!-- tick event: collector → redis (hot) -->
+  <path class="edge hot" d="M590,320 C 560,418 340,418 310,300" marker-end="url(#arch-h)"/>
+  <text class="t-small" x="455" y="424" text-anchor="middle">رویداد تیک ← باطل‌شدن کش و push به پنل</text>
+</svg>

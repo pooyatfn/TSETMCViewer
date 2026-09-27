@@ -1,0 +1,56 @@
+{
+ "instrumentInfo": {
+  "eps": {
+   "epsValue": null,
+   "estimatedEPS": null,
+   "sectorPE": 0.0,
+   "psr": 0.0
+  },
+  "sector": {
+   "dEven": 0,
+   "cSecVal": "68 ",
+   "lSecVal": "صندوق سرمايه گذاري قابل معامله"
+  },
+  "staticThreshold": {
+   "insCode": null,
+   "dEven": 0,
+   "hEven": 0,
+   "psGelStaMax": 48477.0,
+   "psGelStaMin": 45655.0
+  },
+  "minWeek": 46949.0,
+  "maxWeek": 47127.0,
+  "minYear": 34382.0,
+  "maxYear": 47127.0,
+  "qTotTran5JAvg": 649513490.0,
+  "kAjCapValCpsIdx": "",
+  "dEven": 0,
+  "topInst": 0,
+  "faraDesc": "نوع صندوق: در اوراق بهادار با درآمد ثابت",
+  "contractSize": 0,
+  "nav": 0.0,
+  "underSupervision": 0,
+  "etfIssuedUnit": 13536478511.0,
+  "etfUnitDeven": 20260922,
+  "cValMne": null,
+  "lVal18": "Yaghoot Agah ETF",
+  "cSocCSAC": null,
+  "lSoc30": null,
+  "yMarNSC": null,
+  "yVal": "305",
+  "insCode": "1438514795814416",
+  "lVal30": "صندوق س ياقوت آگاه-ثابت",
+  "lVal18AFC": "ياقوت",
+  "flow": 1,
+  "cIsin": "IRT1YGHT0003",
+  "zTitad": 14000000000.0,
+  "baseVol": 1,
+  "instrumentID": "IRT1YGHT0001",
+  "cgrValCot": "H1",
+  "cComVal": "4",
+  "lastDate": 0,
+  "sourceID": 1,
+  "flowTitle": "بازار بورس",
+  "cgrValCotTitle": "بازار صندوق های قابل معامله"
+ }
+}

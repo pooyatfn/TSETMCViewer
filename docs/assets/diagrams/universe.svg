@@ -1,0 +1,23 @@
+<svg class="dg" viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="قیف شناسایی صندوق‌ها">
+  <!-- funnel bars: right-aligned, width ∝ log-ish scale for readability -->
+  <text class="t-title" x="940" y="28" text-anchor="start">از کل بازار تا صندوق‌های سهامی (داده‌ی واقعی ۲ مهر ۱۴۰۵)</text>
+  <rect class="box" x="140" y="48" width="800" height="40" rx="8"/>
+  <text class="t-body" x="925" y="73" text-anchor="start">همه‌ی نمادهای دیده‌بان</text>
+  <text class="t-title" x="154" y="74" text-anchor="end">۳٬۷۹۸</text>
+  <rect class="src" x="340" y="98" width="600" height="40" rx="8"/>
+  <text class="t-body" x="925" y="123" text-anchor="start">گروه ۶۸ (صندوق‌ها و اختیار معامله‌ی آن‌ها)</text>
+  <text class="t-title" x="354" y="124" text-anchor="end">۹۹۳</text>
+  <rect class="src" x="480" y="148" width="460" height="40" rx="8"/>
+  <text class="t-body" x="925" y="173" text-anchor="start">واحد صندوق: ISIN با پیشوند IRT</text>
+  <text class="t-title" x="494" y="174" text-anchor="end">۴۳۲</text>
+  <rect class="core" x="560" y="198" width="380" height="40" rx="8"/>
+  <text class="t-body" x="925" y="223" text-anchor="start">تابلوی اصلی: ISIN با پسوند 0001</text>
+  <text class="t-title" x="574" y="224" text-anchor="end">۳۳۲</text>
+  <rect class="store" x="680" y="248" width="260" height="40" rx="8"/>
+  <text class="t-body" x="925" y="273" text-anchor="start">خانواده‌ی سهامی: ۱۵۹ صندوق</text>
+  <text class="t-small" x="665" y="273" text-anchor="start">طبق faraDesc و پسوند نام</text>
+  <!-- side notes -->
+  <text class="t-small" x="120" y="123" text-anchor="end">− ۵۶۱ اختیار معامله (IRO…)</text>
+  <text class="t-small" x="120" y="173" text-anchor="end">− ۱۰۰ تابلوی فرعی (پسوند 0002 و 0004)</text>
+  <text class="t-small" x="120" y="223" text-anchor="end">− درآمد ثابت، مختلط، کالایی (IRTK)</text>
+</svg>

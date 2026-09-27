@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: tsetmc-viewer
+    folder: TSETMCViewer
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false   # dashboards are code: edit monitoring/grafana/build_dashboards.py
+    options:
+      path: /etc/grafana/dashboards

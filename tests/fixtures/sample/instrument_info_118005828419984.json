@@ -1,0 +1,56 @@
+{
+ "instrumentInfo": {
+  "eps": {
+   "epsValue": null,
+   "estimatedEPS": null,
+   "sectorPE": 973.66,
+   "psr": 0.0
+  },
+  "sector": {
+   "dEven": 0,
+   "cSecVal": "68 ",
+   "lSecVal": "صندوق سرمايه گذاري قابل معامله"
+  },
+  "staticThreshold": {
+   "insCode": null,
+   "dEven": 0,
+   "hEven": 0,
+   "psGelStaMax": 18553.0,
+   "psGelStaMin": 17473.0
+  },
+  "minWeek": 17623.0,
+  "maxWeek": 18553.0,
+  "minYear": 9839.0,
+  "maxYear": 19605.0,
+  "qTotTran5JAvg": 2777472.0,
+  "kAjCapValCpsIdx": "",
+  "dEven": 0,
+  "topInst": 0,
+  "faraDesc": "نوع صندوق: سهامي بخشي در صنعت بیمه و صدوق بازنشستگی به جز تامین اجتماعی-با ساختار قابل معامله",
+  "contractSize": 0,
+  "nav": 0.0,
+  "underSupervision": 0,
+  "etfIssuedUnit": 270264793.0,
+  "etfUnitDeven": 20260922,
+  "cValMne": null,
+  "lVal18": "GostareFirouze2ETF",
+  "cSocCSAC": null,
+  "lSoc30": null,
+  "yMarNSC": null,
+  "yVal": "305",
+  "insCode": "118005828419984",
+  "lVal30": "صندوق س.بخشي گستره فيروزه2-ب",
+  "lVal18AFC": "چتر",
+  "flow": 2,
+  "cIsin": "IRT3GSBF0001",
+  "zTitad": 1000000000.0,
+  "baseVol": 1,
+  "instrumentID": "IRT3GSBF0001",
+  "cgrValCot": "T1",
+  "cComVal": "4",
+  "lastDate": 0,
+  "sourceID": 2,
+  "flowTitle": "بازار فرابورس",
+  "cgrValCotTitle": "بازار ابزارهاي نوين مالي فرابورس"
+ }
+}

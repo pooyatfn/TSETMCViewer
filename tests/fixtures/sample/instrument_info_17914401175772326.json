@@ -1,0 +1,56 @@
+{
+ "instrumentInfo": {
+  "eps": {
+   "epsValue": null,
+   "estimatedEPS": null,
+   "sectorPE": 0.0,
+   "psr": 0.0
+  },
+  "sector": {
+   "dEven": 0,
+   "cSecVal": "68 ",
+   "lSecVal": "صندوق سرمايه گذاري قابل معامله"
+  },
+  "staticThreshold": {
+   "insCode": null,
+   "dEven": 0,
+   "hEven": 0,
+   "psGelStaMax": 68657.0,
+   "psGelStaMin": 63377.0
+  },
+  "minWeek": 64377.0,
+  "maxWeek": 70586.0,
+  "minYear": 17170.0,
+  "maxYear": 77353.0,
+  "qTotTran5JAvg": 254230647.0,
+  "kAjCapValCpsIdx": "",
+  "dEven": 0,
+  "topInst": 1,
+  "faraDesc": "نوع صندوق: سهامي اهرمي",
+  "contractSize": 0,
+  "nav": 0.0,
+  "underSupervision": 0,
+  "etfIssuedUnit": 3564399999.0,
+  "etfUnitDeven": 20260922,
+  "cValMne": null,
+  "lVal18": "CharismaAhromi ETF",
+  "cSocCSAC": null,
+  "lSoc30": null,
+  "yMarNSC": null,
+  "yVal": "305",
+  "insCode": "17914401175772326",
+  "lVal30": "صندوق س سهامي كاريزما- اهرمي",
+  "lVal18AFC": "اهرم",
+  "flow": 1,
+  "cIsin": "IRT1AHRM0005",
+  "zTitad": 5500000000.0,
+  "baseVol": 1,
+  "instrumentID": "IRT1AHRM0001",
+  "cgrValCot": "5A",
+  "cComVal": "4",
+  "lastDate": 0,
+  "sourceID": 1,
+  "flowTitle": "بازار بورس",
+  "cgrValCotTitle": "بازار صندوق های قابل معامله"
+ }
+}

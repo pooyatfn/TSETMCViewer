@@ -1,0 +1,1 @@
+"""Per-minute collection loop."""

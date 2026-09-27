@@ -1,0 +1,49 @@
+<svg class="dg" viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="لایه‌های داده">
+  <defs>
+    <marker id="dl-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <marker id="dl-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead hot" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <!-- layer 1: raw -->
+  <rect class="src" x="745" y="40" width="200" height="180" rx="12"/>
+  <text class="t-small" x="845" y="64" text-anchor="middle">لایه‌ی ۱</text>
+  <text class="t-title" x="845" y="86" text-anchor="middle">خام</text>
+  <text class="t-mono" x="845" y="110" text-anchor="middle">raw_snapshots</text>
+  <text class="t-body" x="845" y="140" text-anchor="middle">پاسخ دست‌نخورده‌ی منبع</text>
+  <text class="t-small" x="845" y="162" text-anchor="middle">نگهداری ۳۰ روز · فشرده با ZSTD</text>
+  <text class="t-small" x="845" y="182" text-anchor="middle">حسابرسی و بازپخش</text>
+  <!-- layer 2: clean -->
+  <rect class="core" x="505" y="40" width="200" height="180" rx="12"/>
+  <text class="t-small" x="605" y="64" text-anchor="middle">لایه‌ی ۲</text>
+  <text class="t-title" x="605" y="86" text-anchor="middle">تمیز</text>
+  <text class="t-mono" x="605" y="110" text-anchor="middle">fund_ticks · data_quality_log</text>
+  <text class="t-body" x="605" y="140" text-anchor="middle">فقط صندوق‌های سهامی، دقیقه‌ای</text>
+  <text class="t-small" x="605" y="162" text-anchor="middle">اعتبارسنجی‌شده + پرچم کیفیت</text>
+  <text class="t-small" x="605" y="182" text-anchor="middle">یکتا روی (صندوق، دقیقه)</text>
+  <!-- layer 3: reference -->
+  <rect class="box" x="505" y="235" width="200" height="50" rx="10"/>
+  <text class="t-body" x="605" y="256" text-anchor="middle">مرجع: funds · fund_daily</text>
+  <text class="t-small" x="605" y="274" text-anchor="middle">نوع صندوق، تعداد واحد، خالص دارایی</text>
+  <!-- layer 4: aggregates -->
+  <rect class="store" x="265" y="40" width="200" height="180" rx="12"/>
+  <text class="t-small" x="365" y="64" text-anchor="middle">لایه‌ی ۳</text>
+  <text class="t-title" x="365" y="86" text-anchor="middle">تحلیلی</text>
+  <text class="t-mono" x="365" y="110" text-anchor="middle">Materialized Views</text>
+  <text class="t-body" x="365" y="140" text-anchor="middle">حباب، ورود پول، بازده</text>
+  <text class="t-small" x="365" y="162" text-anchor="middle">هنگام درج محاسبه می‌شود</text>
+  <text class="t-small" x="365" y="182" text-anchor="middle">نه هنگام خواندن</text>
+  <!-- consumer -->
+  <rect class="serve" x="25" y="80" width="200" height="100" rx="12"/>
+  <text class="t-title" x="125" y="115" text-anchor="middle">پنل و API</text>
+  <text class="t-small" x="125" y="140" text-anchor="middle">فقط از لایه‌ی ۲ و ۳ می‌خوانند</text>
+  <!-- edges -->
+  <path class="edge" d="M745,130 L707,130" marker-end="url(#dl-a)"/>
+  <path class="edge" d="M505,130 L467,130" marker-end="url(#dl-a)"/>
+  <path class="edge dash" d="M605,235 L605,222" marker-end="url(#dl-a)"/>
+  <path class="edge" d="M265,130 L227,130" marker-end="url(#dl-a)"/>
+  <path class="edge hot" d="M800,40 C 780,22 650,22 630,38" marker-end="url(#dl-h)"/>
+  <text class="t-small" x="715" y="13" text-anchor="middle">بازپخش پس از اصلاح پارسر</text>
+</svg>

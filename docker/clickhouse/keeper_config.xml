@@ -1,0 +1,33 @@
+<!--
+  ADR 0011: a single-node Keeper (ZooKeeper protocol). It coordinates
+  Replicated table metadata and the ON CLUSTER DDL queue for the two
+  ClickHouse replicas; it does not hold any of the application's data, so
+  losing it pauses replication coordination rather than losing rows.
+  A single node has no quorum (a real Keeper needs 3) — an accepted
+  tradeoff for a single-host demo, documented in the ADR.
+-->
+<clickhouse>
+  <logger>
+    <level>warning</level>
+    <console>true</console>
+  </logger>
+  <listen_host>0.0.0.0</listen_host>
+  <keeper_server>
+    <tcp_port>9181</tcp_port>
+    <server_id>1</server_id>
+    <four_letter_word_allow_list>ruok,mntr,conf,srvr,stat</four_letter_word_allow_list>
+    <log_storage_path>/var/lib/clickhouse-keeper/logs</log_storage_path>
+    <snapshot_storage_path>/var/lib/clickhouse-keeper/snapshots</snapshot_storage_path>
+    <coordination_settings>
+      <operation_timeout_ms>10000</operation_timeout_ms>
+      <session_timeout_ms>30000</session_timeout_ms>
+    </coordination_settings>
+    <raft_configuration>
+      <server>
+        <id>1</id>
+        <hostname>clickhouse-keeper</hostname>
+        <port>9234</port>
+      </server>
+    </raft_configuration>
+  </keeper_server>
+</clickhouse>

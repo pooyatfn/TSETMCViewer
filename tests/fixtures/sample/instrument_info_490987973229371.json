@@ -1,0 +1,56 @@
+{
+ "instrumentInfo": {
+  "eps": {
+   "epsValue": null,
+   "estimatedEPS": null,
+   "sectorPE": 973.66,
+   "psr": 0.0
+  },
+  "sector": {
+   "dEven": 0,
+   "cSecVal": "68 ",
+   "lSecVal": "صندوق سرمايه گذاري قابل معامله"
+  },
+  "staticThreshold": {
+   "insCode": null,
+   "dEven": 0,
+   "hEven": 0,
+   "psGelStaMax": 10400.0,
+   "psGelStaMin": 9796.0
+  },
+  "minWeek": 10077.0,
+  "maxWeek": 10111.0,
+  "minYear": 10010.0,
+  "maxYear": 10300.0,
+  "qTotTran5JAvg": 3989013.0,
+  "kAjCapValCpsIdx": "",
+  "dEven": 0,
+  "topInst": 0,
+  "faraDesc": "نوع صندوق : در اوراق بهادار با درآمد ثابت",
+  "contractSize": 0,
+  "nav": 0.0,
+  "underSupervision": 0,
+  "etfIssuedUnit": 465563654.0,
+  "etfUnitDeven": 20260922,
+  "cValMne": null,
+  "lVal18": "Akam ETF",
+  "cSocCSAC": null,
+  "lSoc30": null,
+  "yMarNSC": null,
+  "yVal": "305",
+  "insCode": "490987973229371",
+  "lVal30": "صندوق س. نوع دوم آكام-د",
+  "lVal18AFC": "آكام",
+  "flow": 2,
+  "cIsin": "IRT3AKMF0002",
+  "zTitad": 500000000.0,
+  "baseVol": 1,
+  "instrumentID": "IRT3AKMF0001",
+  "cgrValCot": "1A",
+  "cComVal": "4",
+  "lastDate": 0,
+  "sourceID": 2,
+  "flowTitle": "بازار فرابورس",
+  "cgrValCotTitle": "بازار ابزارهاي نوين مالي فرابورس"
+ }
+}

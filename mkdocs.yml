@@ -1,0 +1,111 @@
+site_name: مستندات TSETMCViewer
+site_description: سرویس دریافت، پاک‌سازی و تحلیل لحظه‌ای صندوق‌های سهامی قابل معامله بورس تهران
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: material
+  language: fa            # sets dir="rtl" and Persian UI strings
+  font: false             # self-hosted Vazirmatn (Google Fonts is unreliable from Iran)
+  icon:
+    logo: material/chart-areaspline
+    admonition:
+      note: material/information-outline
+      tip: material/lightbulb-on-outline
+      warning: material/alert-outline
+      danger: material/alert-octagon-outline
+      example: material/flask-outline
+      question: material/help-circle-outline
+      abstract: material/text-box-outline
+      success: material/check-circle-outline
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: حالت تیره }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: حالت روشن }
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - toc.integrate
+    - search.highlight
+    - content.code.copy
+    - content.tooltips
+
+extra_css:
+  - assets/css/fonts.css
+  - assets/css/theme.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: "#"
+      slugify: !!python/object/apply:pymdownx.slugs.slugify { kwds: { case: lower } }
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.snippets:
+      base_path: [docs]
+      check_paths: true
+
+nav:
+  - خانه: index.md
+  - معماری:
+      - نمای کلی: 01-architecture.md
+      - منابع داده: 02-data-sources.md
+      - مدل داده: 03-data-model.md
+      - کیفیت داده: 04-data-quality.md
+      - منطق مالی: 05-financial-logic.md
+      - پنل و نمودارها: 06-dashboard.md
+      - API: 07-api.md
+  - تصمیم‌های فنی (ADR):
+      - adr/index.md
+      - "0001 · ClickHouse": adr/0001-clickhouse.md
+      - "0002 · پشته‌ی پایتون async": adr/0002-python-async-stack.md
+      - "0003 · اول داده‌ی خام": adr/0003-raw-first-ingestion.md
+      - "0004 · زمان‌بندی دقیقه‌ای": adr/0004-scheduling.md
+      - "0005 · مایگریشن": adr/0005-migrations.md
+      - "0006 · کش": adr/0006-caching.md
+      - "0007 · هویت صندوق": adr/0007-fund-identity.md
+      - "0008 · پنل وب": adr/0008-web-panel.md
+      - "0009 · پایش": adr/0009-observability.md
+      - "0010 · در دسترس بودن": adr/0010-high-availability.md
+      - "0011 · ریپلیکای ClickHouse": adr/0011-clickhouse-replication.md
+      - "0012 · بازسازی دقیقه‌های جاافتاده": adr/0012-intraday-backfill.md
+      - "0013 · بازسازی جلسه‌های گذشته": adr/0013-session-backfill.md
+  - اجرا و عملیات: 08-runbook.md
+  - آزمون و مقاوم‌سازی: 09-quality-engineering.md
+  - محدودیت‌ها و گام‌های بعدی: 10-limitations.md
+  - پایش و هشدار: 11-monitoring.md
+
+# Broken #anchors fail `mkdocs build --strict` too (Persian headings make slugs easy to get wrong).
+validation:
+  anchors: warn

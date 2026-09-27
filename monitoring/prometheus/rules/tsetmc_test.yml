@@ -1,0 +1,177 @@
+# Unit tests for tsetmc.yml:  promtool test rules monitoring/prometheus/rules/tsetmc_test.yml
+# Each scenario is a failure the service has actually met or is designed for.
+rule_files:
+  - tsetmc.yml
+evaluation_interval: 1m
+
+tests:
+  # VPN turned on during the session: every cycle fails → one critical alert after 3 cycles.
+  - interval: 1m
+    input_series:
+      - series: 'tsetmc_collector_failed_streak{instance="c1"}'
+        values: '0 0 1 2 3 4 5 6'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TsetmcCollectorFailing
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: TsetmcCollectorFailing
+        exp_alerts:
+          - exp_labels: {severity: critical, component: collector}
+            exp_annotations:
+              summary: "چرخه‌های دریافت پشت سر هم شکست می‌خورند"
+              description: "5 چرخه‌ی ناموفق پیاپی. شایع‌ترین علت: TSETMC از این IP در دسترس نیست (VPN روشن است)."
+              runbook: "docs/11-monitoring.md#collector-failing"
+
+  # Market open but the last successful cycle keeps getting older.
+  - interval: 1m
+    input_series:
+      - series: 'tsetmc_market_open{instance="c1"}'
+        values: '1x15'
+      - series: 'tsetmc_collector_last_success_timestamp_seconds{instance="c1"}'
+        values: '0x15'  # never advances after t=0
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: TsetmcDataStale
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: TsetmcDataStale
+        exp_alerts:
+          - exp_labels: {severity: critical, component: collector}
+            exp_annotations:
+              summary: "بازار باز است ولی داده‌ی تازه ثبت نمی‌شود"
+              description: "آخرین چرخه‌ی موفق 8m 0s پیش بوده است."
+              runbook: "docs/11-monitoring.md#data-stale"
+
+  # Market closed (holiday, night): an old last-success is expected, no alert.
+  - interval: 1m
+    input_series:
+      - series: 'tsetmc_market_open{instance="c1"}'
+        values: '0x30'
+      - series: 'tsetmc_collector_last_success_timestamp_seconds{instance="c1"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: TsetmcDataStale
+        exp_alerts: []
+
+  # Regression: session_confirmed is sticky for the rest of the calendar day
+  # once TSETMC has traded, so a naive "session_confirmed == 1" gate would
+  # still fire well after close. market_open is the live signal and must
+  # flip to 0 the moment the market closes, silencing the alert even though
+  # session_confirmed is still 1 and the last success keeps getting older.
+  - interval: 1m
+    input_series:
+      - series: 'tsetmc_session_confirmed{instance="c1"}'
+        values: '1x30'
+      - series: 'tsetmc_market_open{instance="c1"}'
+        values: '1x14 0x16'
+      - series: 'tsetmc_collector_last_success_timestamp_seconds{instance="c1"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: TsetmcDataStale
+        exp_alerts: []
+
+  # Two replicas: one leader is fine, zero is critical, two is a warning.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="collector", instance="c1"}'
+        values: '1x20'
+      - series: 'up{job="collector", instance="c2"}'
+        values: '1x20'
+      - series: 'tsetmc_collector_leader{instance="c1"}'
+        values: '1 1 1 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1'
+      - series: 'tsetmc_collector_leader{instance="c2"}'
+        values: '0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: TsetmcNoLeader
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: TsetmcNoLeader
+        exp_alerts:
+          - exp_labels: {severity: critical, component: collector}
+            exp_annotations:
+              summary: "collector رهبر ندارد"
+              description: "collector در حال اجراست اما هیچ نمونه‌ای lease رهبری را ندارد، پس داده‌ای جمع نمی‌شود. Redis را بررسی کنید."
+              runbook: "docs/11-monitoring.md#no-leader"
+      - eval_time: 18m
+        alertname: TsetmcSplitBrain
+        exp_alerts:
+          - exp_labels: {severity: warning, component: collector}
+            exp_annotations:
+              summary: "بیش از یک collector خود را رهبر می‌داند"
+              description: "2 نمونه هم‌زمان داده جمع می‌کنند. داده خراب نمی‌شود (ReplacingMergeTree) ولی بار روی TSETMC چند برابر است. معمولاً یعنی Redis در دسترس نیست."
+              runbook: "docs/11-monitoring.md#split-brain"
+
+  # No collector target at all.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="collector", instance="c1"}'
+        values: '1 1 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: TsetmcCollectorDown
+        exp_alerts:
+          - exp_labels: {severity: critical, component: collector}
+            exp_annotations:
+              summary: "هیچ collectorی در دسترس نیست"
+              description: "Prometheus به هیچ نمونه‌ای از collector دسترسی ندارد. در ساعات بازار یعنی از دست رفتن داده‌ی دقیقه‌ای که بعداً قابل بازیابی نیست."
+              runbook: "docs/11-monitoring.md#collector-down"
+
+  # API: 10% of requests fail with 500 for 10 minutes.
+  - interval: 1m
+    input_series:
+      - series: 'tsetmc_api_requests_total{route="/api/v1/overview", method="GET", status="200"}'
+        values: '0+90x15'
+      - series: 'tsetmc_api_requests_total{route="/api/v1/overview", method="GET", status="500"}'
+        values: '0+10x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: TsetmcApiErrors
+        exp_alerts:
+          - exp_labels: {severity: warning, component: api}
+            exp_annotations:
+              summary: "بیش از ۵٪ پاسخ‌های API خطای سرور هستند"
+              description: "نسبت خطا 10%."
+              runbook: "docs/11-monitoring.md#api-errors"
+
+  # Database disk at 5% free.
+  - interval: 1m
+    input_series:
+      - series: 'ClickHouseAsyncMetrics_FilesystemMainPathAvailableBytes{instance="ch"}'
+        values: '5x15'
+      - series: 'ClickHouseAsyncMetrics_FilesystemMainPathTotalBytes{instance="ch"}'
+        values: '100x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: ClickHouseDiskLow
+        exp_alerts:
+          - exp_labels: {severity: warning, component: database}
+            exp_annotations:
+              summary: "فضای دیسک ClickHouse کمتر از ۱۰٪ است"
+              description: "فضای آزاد 5%."
+              runbook: "docs/11-monitoring.md#disk-low"
+
+  # Completeness 80% while open → warning; the same while closed → nothing.
+  - interval: 1m
+    input_series:
+      - series: 'tsetmc_collector_funds_received{instance="c1"}'
+        values: '128x30'
+      - series: 'tsetmc_collector_funds_expected{instance="c1"}'
+        values: '160x30'
+      - series: 'tsetmc_market_open{instance="c1"}'
+        values: '1x14 0x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: TsetmcLowCompleteness
+        exp_alerts:
+          - exp_labels: {severity: warning, component: collector}
+            exp_annotations:
+              summary: "کمتر از ۹۰٪ صندوق‌ها در هر چرخه دریافت می‌شوند"
+              description: "کامل بودن داده 80% است."
+              runbook: "docs/11-monitoring.md#low-completeness"
+      - eval_time: 29m
+        alertname: TsetmcLowCompleteness
+        exp_alerts: []

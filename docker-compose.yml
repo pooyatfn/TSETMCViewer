@@ -1,0 +1,250 @@
+name: tsetmc-viewer
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  image: tsetmc-viewer:local
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    CLICKHOUSE_HOST: clickhouse
+    CLICKHOUSE_PORT: "8123"
+    CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+    CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-tsetmc}
+    REDIS_URL: redis://redis:6379/0
+    LOG_JSON: "true"
+  restart: unless-stopped
+
+services:
+  clickhouse:
+    # Official ClickHouse image + config.d/prometheus.xml (built-in endpoint on :9363)
+    build: &config-build
+      context: .
+      dockerfile: docker/config.Dockerfile
+      target: clickhouse
+    image: tsetmc-viewer-clickhouse:local
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-tsetmc}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      TZ: Asia/Tehran
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ports:
+      - "127.0.0.1:8123:8123"   # HTTP interface, local access only
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # --- ha-storage: docker compose --profile ha-storage up (ADR 0011) ---
+  # A second, self-contained ClickHouse deployment (one shard, two replicas,
+  # coordinated by Keeper) that runs *alongside* the plain `clickhouse`
+  # service above, not instead of it — nothing here changes by starting this
+  # profile. To actually store data on it, see the cutover steps in
+  # docs/adr/0011-clickhouse-replication.md#رفتن-به-سراغ-ریپلیکاها.
+  clickhouse-keeper:
+    build: { <<: *config-build, target: clickhouse-keeper }
+    image: tsetmc-viewer-clickhouse-keeper:local
+    profiles: [ha-storage]
+    command: ["clickhouse", "keeper", "--config-file=/etc/clickhouse-keeper/keeper_config.xml"]
+    volumes:
+      - clickhouse-keeper-data:/var/lib/clickhouse-keeper
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9181 && printf ruok >&3 && head -c 4 <&3 | grep -q imok"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  clickhouse-0: &clickhouse-ha
+    build: { <<: *config-build, target: clickhouse-ha }
+    image: tsetmc-viewer-clickhouse-ha:local
+    profiles: [ha-storage]
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-tsetmc}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      CLICKHOUSE_REPLICA_NAME: clickhouse-0
+      TZ: Asia/Tehran
+    volumes:
+      - clickhouse-0-data:/var/lib/clickhouse
+    ports:
+      - "127.0.0.1:8124:8123"   # direct access for the manual checks in ADR 0011
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    depends_on:
+      clickhouse-keeper: { condition: service_healthy }
+
+  clickhouse-1:
+    <<: *clickhouse-ha
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-tsetmc}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      CLICKHOUSE_REPLICA_NAME: clickhouse-1
+      TZ: Asia/Tehran
+    volumes:
+      - clickhouse-1-data:/var/lib/clickhouse
+    ports:
+      - "127.0.0.1:8125:8123"
+
+  migrate-ha:
+    <<: *app
+    profiles: [ha-storage]
+    command: ["migrate"]
+    restart: "no"
+    # A full override, not additive (YAML merge keys replace `environment:`
+    # wholesale) — repeats *app's values and points them at clickhouse-0.
+    environment:
+      CLICKHOUSE_HOST: clickhouse-0
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-tsetmc}
+      CLICKHOUSE_CLUSTER: tsetmc_cluster
+      REDIS_URL: redis://redis:6379/0
+      LOG_JSON: "true"
+    depends_on:
+      clickhouse-0: { condition: service_healthy }
+      clickhouse-1: { condition: service_healthy }
+
+  redis:
+    image: redis:7-alpine
+    # Cache + pub/sub only: nothing here must survive a restart (ADR 0006).
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb",
+              "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["migrate"]
+    restart: "no"
+    depends_on:
+      clickhouse: { condition: service_healthy }
+
+  collector:
+    <<: *app
+    command: ["collect"]
+    # Two replicas, one active: they elect a leader through a Redis lease (ADR 0010).
+    deploy:
+      replicas: ${COLLECTOR_REPLICAS:-2}
+    # Liveness only: the loop missed its own promised heartbeat (see collector/heartbeat.py).
+    healthcheck:
+      test: ["CMD", "tsetmc-viewer", "healthcheck"]
+      interval: 60s
+      timeout: 10s
+      start_period: 2m    # the heartbeat itself allows for a long first bootstrap
+      retries: 3
+    # SIGTERM lets the running cycle finish writing before exit.
+    stop_grace_period: 30s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  api:
+    <<: *app
+    command: ["api", "--port", "8000", "--workers", "${API_WORKERS:-2}"]
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: tsetmc-viewer-web:local
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+  # --- monitoring: docker compose --profile monitoring up -d (docs/11-monitoring.md) ---
+  prometheus:
+    build: { <<: *config-build, target: prometheus }
+    image: tsetmc-viewer-prometheus:local
+    profiles: [monitoring]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+      - --web.enable-lifecycle
+    volumes:
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    restart: unless-stopped
+
+  alertmanager:
+    build: { <<: *config-build, target: alertmanager }
+    image: tsetmc-viewer-alertmanager:local
+    profiles: [monitoring]
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - alertmanager-data:/alertmanager
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    restart: unless-stopped
+
+  alert-relay:
+    <<: *app
+    profiles: [monitoring]
+    command: ["alert-relay", "--port", "9095"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9095/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    build: { <<: *config-build, target: grafana }
+    image: tsetmc-viewer-grafana:local
+    profiles: [monitoring]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/tsetmc-overview.json
+      GF_DATE_FORMATS_DEFAULT_TIMEZONE: Asia/Tehran
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+volumes:
+  clickhouse-data:
+  clickhouse-keeper-data:
+  clickhouse-0-data:
+  clickhouse-1-data:
+  prometheus-data:
+  alertmanager-data:
+  grafana-data:

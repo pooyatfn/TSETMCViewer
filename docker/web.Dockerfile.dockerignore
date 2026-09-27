@@ -1,0 +1,6 @@
+# Used instead of /.dockerignore when building docker/web.Dockerfile
+*
+!web/
+web/node_modules
+web/dist
+!docker/nginx.conf

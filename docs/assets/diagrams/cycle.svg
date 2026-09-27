@@ -1,0 +1,43 @@
+<svg class="dg" viewBox="0 0 960 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="بودجه‌ی زمانی یک چرخه‌ی دقیقه‌ای">
+  <!-- axis: t=0 at x=780, t=60s at x=120 → 11 px per second (RTL) -->
+  <text class="t-title" x="940" y="30" text-anchor="start">یک چرخه در ۶۰ ثانیه (اندازه‌گیری واقعی، ۲ مهر ۱۴۰۵)</text>
+  <g>
+    <line class="grid-line" x1="780" y1="50" x2="780" y2="300"/>
+    <line class="grid-line" x1="670" y1="50" x2="670" y2="300"/>
+    <line class="grid-line" x1="560" y1="50" x2="560" y2="300"/>
+    <line class="grid-line" x1="450" y1="50" x2="450" y2="300"/>
+    <line class="grid-line" x1="340" y1="50" x2="340" y2="300"/>
+    <line class="grid-line" x1="230" y1="50" x2="230" y2="300"/>
+    <line class="grid-line" x1="120" y1="50" x2="120" y2="300"/>
+    <text class="t-small" x="780" y="318" text-anchor="middle">۰ ث</text>
+    <text class="t-small" x="670" y="318" text-anchor="middle">۱۰</text>
+    <text class="t-small" x="560" y="318" text-anchor="middle">۲۰</text>
+    <text class="t-small" x="450" y="318" text-anchor="middle">۳۰</text>
+    <text class="t-small" x="340" y="318" text-anchor="middle">۴۰</text>
+    <text class="t-small" x="230" y="318" text-anchor="middle">۵۰</text>
+    <text class="t-small" x="120" y="318" text-anchor="middle">۶۰ ث</text>
+  </g>
+  <!-- lanes -->
+  <text class="t-body" x="940" y="80" text-anchor="start">دیده‌بان بازار با gzip</text>
+  <text class="t-small" x="940" y="95" text-anchor="start">۶۱۰ کیلوبایت، ۳۸۴۵ نماد</text>
+  <rect class="bar-src" x="769" y="70" width="11" height="22" rx="5"/>
+  <text class="t-body" x="758" y="86" text-anchor="start">۱٫۰ ث</text>
+  <text class="t-body" x="940" y="125" text-anchor="start">دیده‌بان نسخه‌ی قدیمی</text>
+  <text class="t-small" x="940" y="140" text-anchor="start">۴۲۵ کیلوبایت gzip</text>
+  <rect class="bar-src" x="762" y="115" width="18" height="22" rx="5"/>
+  <text class="t-body" x="750" y="131" text-anchor="start">۱٫۷ ث</text>
+  <text class="t-body" x="940" y="170" text-anchor="start">حقیقی/حقوقی همه</text>
+  <rect class="bar-src" x="756" y="160" width="24" height="22" rx="5"/>
+  <text class="t-body" x="744" y="176" text-anchor="start">۲٫۲ ث</text>
+  <text class="t-body" x="940" y="215" text-anchor="start">خالص ارزش دارایی (NAV)</text>
+  <text class="t-small" x="940" y="230" text-anchor="start">~۱۶۰ درخواست، ۸ هم‌زمان</text>
+  <rect class="bar-src" x="670" y="205" width="110" height="22" rx="5"/>
+  <text class="t-body" x="658" y="221" text-anchor="start">≈ ۱۰ ث (تخمین)</text>
+  <text class="t-body" x="940" y="265" text-anchor="start">ذخیره و پردازش</text>
+  <rect class="bar-core" x="758" y="255" width="22" height="22" rx="5"/>
+  <text class="t-body" x="748" y="271" text-anchor="start">&lt; ۲ ث</text>
+  <!-- slack -->
+  <rect x="130" y="112" width="440" height="80" rx="12" fill="none" class="zone"/>
+  <text class="t-title" x="350" y="148" text-anchor="middle">حاشیه‌ی امن ≈ ۴۵ ثانیه</text>
+  <text class="t-small" x="350" y="172" text-anchor="middle">برای retry، کندی TSETMC و رشد تعداد صندوق‌ها</text>
+</svg>

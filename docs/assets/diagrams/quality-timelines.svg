@@ -1,0 +1,58 @@
+<svg class="dg" viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="پر کردن شکاف و ثبت لبه‌ای">
+  <!-- time axis labels: minute 10:00 (right) → 10:09 (left) -->
+  <text class="t-small" x="840" y="280" text-anchor="middle">۱۰:۰۰</text>
+  <text class="t-small" x="770" y="280" text-anchor="middle">۱۰:۰۱</text>
+  <text class="t-small" x="700" y="280" text-anchor="middle">۱۰:۰۲</text>
+  <text class="t-small" x="630" y="280" text-anchor="middle">۱۰:۰۳</text>
+  <text class="t-small" x="560" y="280" text-anchor="middle">۱۰:۰۴</text>
+  <text class="t-small" x="490" y="280" text-anchor="middle">۱۰:۰۵</text>
+  <text class="t-small" x="420" y="280" text-anchor="middle">۱۰:۰۶</text>
+  <text class="t-small" x="350" y="280" text-anchor="middle">۱۰:۰۷</text>
+  <text class="t-small" x="280" y="280" text-anchor="middle">۱۰:۰۸</text>
+  <text class="t-small" x="210" y="280" text-anchor="middle">۱۰:۰۹</text>
+  <!-- row 1: gap fill -->
+  <text class="t-title" x="945" y="40" text-anchor="start">پر کردن شکاف</text>
+  <text class="t-small" x="945" y="58" text-anchor="start">۳ دقیقه قطعی collector</text>
+  <line class="grid-line" x1="190" y1="90" x2="860" y2="90"/>
+  <circle cx="840" cy="90" r="9" class="bar-core"/>
+  <circle cx="770" cy="90" r="9" class="bar-core"/>
+  <circle cx="700" cy="90" r="9" class="box"/>
+  <circle cx="630" cy="90" r="9" class="box"/>
+  <circle cx="560" cy="90" r="9" class="box"/>
+  <circle cx="490" cy="90" r="9" class="bar-core"/>
+  <circle cx="420" cy="90" r="9" class="bar-core"/>
+  <circle cx="350" cy="90" r="9" class="bar-core"/>
+  <circle cx="280" cy="90" r="9" class="bar-core"/>
+  <circle cx="210" cy="90" r="9" class="bar-core"/>
+  <path class="edge dash" d="M770,110 L770,118 L560,118 L560,110"/>
+  <text class="t-small" x="665" y="136" text-anchor="middle">سه تیک با مقدار ۱۰:۰۱ و پرچم FORWARD_FILLED</text>
+  <!-- row 2: edge-triggered logging -->
+  <text class="t-title" x="945" y="175" text-anchor="start">ثبت لبه‌ای</text>
+  <text class="t-small" x="945" y="193" text-anchor="start">کهنگی NAV در دو رخداد جدا</text>
+  <line class="grid-line" x1="190" y1="220" x2="860" y2="220"/>
+  <rect x="826" y="206" width="28" height="28" rx="6" class="box"/>
+  <rect x="756" y="206" width="28" height="28" rx="6" class="bar-store"/>
+  <rect x="686" y="206" width="28" height="28" rx="6" class="bar-store"/>
+  <rect x="616" y="206" width="28" height="28" rx="6" class="bar-store"/>
+  <rect x="546" y="206" width="28" height="28" rx="6" class="box"/>
+  <rect x="476" y="206" width="28" height="28" rx="6" class="box"/>
+  <rect x="406" y="206" width="28" height="28" rx="6" class="bar-store"/>
+  <rect x="336" y="206" width="28" height="28" rx="6" class="bar-store"/>
+  <rect x="266" y="206" width="28" height="28" rx="6" class="box"/>
+  <rect x="196" y="206" width="28" height="28" rx="6" class="box"/>
+  <path class="edge hot" d="M770,196 L770,178"/>
+  <circle cx="770" cy="172" r="6" class="arrowhead hot"/>
+  <path class="edge hot" d="M420,196 L420,178"/>
+  <circle cx="420" cy="172" r="6" class="arrowhead hot"/>
+  <text class="t-small" x="770" y="160" text-anchor="middle">یک ردیف گزارش</text>
+  <text class="t-small" x="420" y="160" text-anchor="middle">یک ردیف گزارش</text>
+  <!-- legend -->
+  <circle cx="120" cy="84" r="7" class="bar-core"/>
+  <text class="t-small" x="105" y="88" text-anchor="start">تیک واقعی</text>
+  <circle cx="120" cy="108" r="7" class="box"/>
+  <text class="t-small" x="105" y="112" text-anchor="start">تیک پرشده</text>
+  <rect x="113" y="206" width="14" height="14" rx="3" class="bar-store"/>
+  <text class="t-small" x="105" y="218" text-anchor="start">پرچم روی تیک</text>
+  <circle cx="120" cy="242" r="6" class="arrowhead hot"/>
+  <text class="t-small" x="105" y="246" text-anchor="start">ردیف گزارش</text>
+</svg>

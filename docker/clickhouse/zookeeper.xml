@@ -1,0 +1,17 @@
+<!--
+  ADR 0011: ClickHouse Keeper (ZooKeeper-protocol-compatible) coordinates
+  Replicated table metadata and the ON CLUSTER DDL queue. One node here is
+  a single point of failure for that coordination (a real cluster needs 3
+  for quorum) — see the ADR for why that's an accepted tradeoff at this scale.
+-->
+<clickhouse>
+  <zookeeper>
+    <node>
+      <host>clickhouse-keeper</host>
+      <port>9181</port>
+    </node>
+  </zookeeper>
+  <distributed_ddl>
+    <path>/clickhouse/task_queue/ddl</path>
+  </distributed_ddl>
+</clickhouse>

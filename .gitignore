@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.idea/
+.vscode/
+node_modules/
+site/
+# full API captures (large); tests use tests/fixtures/sample/
+tests/fixtures/captured/
+tests/fixtures/tsetmc/
+tests/fixtures/tsetmc_old/
+tests/fixtures/fipiran/
+tests/fixtures/manifest.json

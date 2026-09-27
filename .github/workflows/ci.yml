@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python · lint, types, tests
+    runs-on: ubuntu-latest
+    services:
+      clickhouse:
+        # Must equal the tag in docker-compose.yml (tests/test_repo_consistency.py):
+        # a patch-level default change broke migration 0004 once (ADR 0005, Day 5 review).
+        image: clickhouse/clickhouse-server:24.8
+        env:
+          CLICKHOUSE_PASSWORD: tsetmc
+        ports: ["8123:8123"]
+        options: >-
+          --health-cmd "wget -qO- http://127.0.0.1:8123/ping"
+          --health-interval 5s --health-retries 20
+    env:
+      CLICKHOUSE_HOST: localhost
+      CLICKHOUSE_PASSWORD: tsetmc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - name: Tests (unit + integration on real ClickHouse) with coverage
+        run: uv run pytest --cov --cov-report=term --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  web:
+    name: Web panel · types, tests, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  monitoring:
+    name: Monitoring · alert rule tests, configs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Alert rules (syntax + unit tests) and Prometheus config
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/monitoring/prometheus/rules:/etc/prometheus/rules:ro" \
+            -v "$PWD/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            prom/prometheus:v2.55.1 check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint promtool -w /etc/prometheus/rules \
+            -v "$PWD/monitoring/prometheus/rules:/etc/prometheus/rules:ro" \
+            prom/prometheus:v2.55.1 test rules tsetmc_test.yml
+      - name: Alertmanager config
+        run: |
+          docker run --rm --entrypoint amtool \
+            -v "$PWD/monitoring/alertmanager:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.27.0 check-config /etc/alertmanager/alertmanager.yml
+
+  docs:
+    name: Docs · strict build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --only-group docs
+      - run: uv run --no-sync mkdocs build --strict
+
+  smoke:
+    name: Docker · build all images, boot the stack
+    runs-on: ubuntu-latest
+    needs: [python, web, monitoring]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config -q
+      - run: docker compose build
+      - name: Start everything except the collector (TSETMC is not reachable from CI)
+        # api depends on migrate (service_completed_successfully), so this also runs it.
+        run: docker compose --profile monitoring up -d api web prometheus alertmanager alert-relay grafana
+      - name: Wait for the API and the panel
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS localhost:8000/health && curl -fsS localhost:8080/healthz && exit 0
+            sleep 3
+          done
+          exit 1
+      - name: Migrations applied, panel serves the SPA and proxies the API
+        run: |
+          test "$(docker compose ps -a migrate --format '{{.ExitCode}}')" = "0"
+          curl -fsS localhost:8080/ | grep -q '<div id="root">'
+          curl -fsS localhost:8080/api/v1/pipeline/runs
+      - name: Monitoring scrapes the stack and Grafana has the dashboards
+        run: |
+          for i in $(seq 1 40); do
+            up=$(curl -fsS 'localhost:9090/api/v1/query?query=sum(up{job=~"api|clickhouse|alert-relay"})' \
+                 | python3 -c 'import json,sys; r=json.load(sys.stdin)["data"]["result"]; print(r[0]["value"][1] if r else 0)')
+            [ "$up" = "3" ] && break
+            sleep 3
+          done
+          [ "$up" = "3" ]
+          curl -fsS localhost:9093/-/ready
+          curl -fsS -u admin:admin 'localhost:3000/api/search?tag=tsetmc-viewer' \
+            | python3 -c 'import json,sys; boards=json.load(sys.stdin); assert len(boards) == 4, boards'
+      - if: failure()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down -v

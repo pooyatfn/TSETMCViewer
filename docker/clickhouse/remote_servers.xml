@@ -1,0 +1,28 @@
+<!--
+  ADR 0011: one shard, two replicas, same host (a real deployment would put
+  each replica on its own machine; ha-storage demonstrates the mechanism, not
+  cross-host fault tolerance — see the ADR). `internal_replication=true`: data
+  reaches both nodes through ReplicatedMergeTree itself, not by ClickHouse
+  writing every INSERT twice, so ON CLUSTER DDL is all this cluster def is for.
+-->
+<clickhouse>
+  <remote_servers>
+    <tsetmc_cluster>
+      <shard>
+        <internal_replication>true</internal_replication>
+        <replica>
+          <host>clickhouse-0</host>
+          <port>9000</port>
+          <user from_env="CLICKHOUSE_USER">default</user>
+          <password from_env="CLICKHOUSE_PASSWORD"></password>
+        </replica>
+        <replica>
+          <host>clickhouse-1</host>
+          <port>9000</port>
+          <user from_env="CLICKHOUSE_USER">default</user>
+          <password from_env="CLICKHOUSE_PASSWORD"></password>
+        </replica>
+      </shard>
+    </tsetmc_cluster>
+  </remote_servers>
+</clickhouse>

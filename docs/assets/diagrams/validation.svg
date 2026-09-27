@@ -1,0 +1,69 @@
+<svg class="dg" viewBox="0 0 960 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="مراحل اعتبارسنجی هر چرخه">
+  <defs>
+    <marker id="va-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <!-- input -->
+  <rect class="src" x="840" y="130" width="105" height="90" rx="10"/>
+  <text class="t-title" x="892" y="162" text-anchor="middle">تیک‌های</text>
+  <text class="t-title" x="892" y="182" text-anchor="middle">خام چرخه</text>
+  <text class="t-small" x="892" y="204" text-anchor="middle">و تیک قبلی هر صندوق</text>
+  <!-- stages -->
+  <rect class="core" x="700" y="40" width="120" height="270" rx="10"/>
+  <text class="t-small" x="760" y="62" text-anchor="middle">۱</text>
+  <text class="t-title" x="760" y="84" text-anchor="middle">کامل بودن</text>
+  <text class="t-body" x="760" y="118" text-anchor="middle">صندوق غایب</text>
+  <text class="t-body" x="760" y="138" text-anchor="middle">دقیقه‌ی جاافتاده</text>
+  <text class="t-body" x="760" y="158" text-anchor="middle">فید منجمد</text>
+  <line class="grid-line" x1="712" y1="178" x2="808" y2="178"/>
+  <text class="t-small" x="760" y="200" text-anchor="middle">اقدام:</text>
+  <text class="t-small" x="760" y="218" text-anchor="middle">ادامه‌ی مقدار قبلی</text>
+  <text class="t-small" x="760" y="236" text-anchor="middle">یا پرچم</text>
+  <rect class="core" x="565" y="40" width="120" height="270" rx="10"/>
+  <text class="t-small" x="625" y="62" text-anchor="middle">۲</text>
+  <text class="t-title" x="625" y="84" text-anchor="middle">دامنه</text>
+  <text class="t-body" x="625" y="118" text-anchor="middle">دامنه‌ی مجاز قیمت</text>
+  <text class="t-body" x="625" y="138" text-anchor="middle">سقف و کف روز</text>
+  <line class="grid-line" x1="577" y1="178" x2="673" y2="178"/>
+  <text class="t-small" x="625" y="200" text-anchor="middle">اقدام:</text>
+  <text class="t-small" x="625" y="218" text-anchor="middle">قیمت تیک قبلی</text>
+  <text class="t-small" x="625" y="236" text-anchor="middle">یا پرچم</text>
+  <rect class="core" x="430" y="40" width="120" height="270" rx="10"/>
+  <text class="t-small" x="490" y="62" text-anchor="middle">۳</text>
+  <text class="t-title" x="490" y="84" text-anchor="middle">سازگاری</text>
+  <text class="t-body" x="490" y="118" text-anchor="middle">سقف/کف شامل آخرین</text>
+  <text class="t-body" x="490" y="138" text-anchor="middle">تجمعی نزولی نیست</text>
+  <text class="t-body" x="490" y="158" text-anchor="middle">حقیقی+حقوقی = حجم</text>
+  <line class="grid-line" x1="442" y1="178" x2="538" y2="178"/>
+  <text class="t-small" x="490" y="200" text-anchor="middle">اقدام:</text>
+  <text class="t-small" x="490" y="218" text-anchor="middle">بازمحاسبه،</text>
+  <text class="t-small" x="490" y="236" text-anchor="middle">مقدار قبلی، پرچم</text>
+  <rect class="core" x="295" y="40" width="120" height="270" rx="10"/>
+  <text class="t-small" x="355" y="62" text-anchor="middle">۴</text>
+  <text class="t-title" x="355" y="84" text-anchor="middle">NAV</text>
+  <text class="t-body" x="355" y="118" text-anchor="middle">نبود NAV</text>
+  <text class="t-body" x="355" y="138" text-anchor="middle">کهنگی NAV</text>
+  <text class="t-body" x="355" y="158" text-anchor="middle">جهش ناگهانی</text>
+  <line class="grid-line" x1="307" y1="178" x2="403" y2="178"/>
+  <text class="t-small" x="355" y="200" text-anchor="middle">اقدام:</text>
+  <text class="t-small" x="355" y="218" text-anchor="middle">ادامه‌ی NAV قبلی</text>
+  <text class="t-small" x="355" y="236" text-anchor="middle">یا پرچم</text>
+  <!-- outputs -->
+  <rect class="store" x="30" y="60" width="235" height="95" rx="10"/>
+  <text class="t-title" x="147" y="88" text-anchor="middle">fund_ticks</text>
+  <text class="t-body" x="147" y="112" text-anchor="middle">مقدار اصلاح‌شده</text>
+  <text class="t-small" x="147" y="132" text-anchor="middle">و بیت در quality_flags</text>
+  <rect class="store" x="30" y="190" width="235" height="95" rx="10"/>
+  <text class="t-title" x="147" y="218" text-anchor="middle">data_quality_log</text>
+  <text class="t-body" x="147" y="242" text-anchor="middle">چه بود، چه کردیم</text>
+  <text class="t-small" x="147" y="262" text-anchor="middle">یک ردیف در شروع هر رخداد</text>
+  <!-- edges -->
+  <path class="edge" d="M840,175 L822,175" marker-end="url(#va-a)"/>
+  <path class="edge" d="M700,175 L687,175" marker-end="url(#va-a)"/>
+  <path class="edge" d="M565,175 L552,175" marker-end="url(#va-a)"/>
+  <path class="edge" d="M430,175 L417,175" marker-end="url(#va-a)"/>
+  <path class="edge" d="M295,150 L267,110" marker-end="url(#va-a)"/>
+  <path class="edge" d="M295,200 L267,235" marker-end="url(#va-a)"/>
+  <text class="t-small" x="560" y="340" text-anchor="middle">هیچ اصلاحی بی‌صدا نیست: هر تغییر هم در ردیف پرچم می‌خورد و هم در گزارش کیفیت ثبت می‌شود</text>
+</svg>

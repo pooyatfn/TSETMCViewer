@@ -1,0 +1,23 @@
+/* Self-hosted Vazirmatn (OFL-1.1, see Vazirmatn-OFL.txt). One variable file covers 100–900. */
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("../fonts/Vazirmatn-Variable.woff2") format("woff2-variations"),
+       url("../fonts/Vazirmatn-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --md-text-font-family: "Vazirmatn";
+  --md-code-font-family: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+/* Material only reads the variables when theme.font is set, so apply directly. */
+body, input, .md-typeset, .md-header, .md-nav, .md-search__input, .md-footer {
+  font-family: "Vazirmatn", -apple-system, "Segoe UI", Tahoma, sans-serif;
+  font-feature-settings: "kern", "liga";
+}
+code, kbd, pre, .md-typeset code, .md-typeset pre {
+  font-family: var(--md-code-font-family);
+}

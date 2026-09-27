@@ -1,0 +1,8 @@
+# Used instead of /.dockerignore when building docker/config.Dockerfile
+*
+!docker/clickhouse/
+!monitoring/prometheus/prometheus.yml
+!monitoring/prometheus/rules/tsetmc.yml
+!monitoring/alertmanager/
+!monitoring/grafana/provisioning/
+!monitoring/grafana/dashboards/

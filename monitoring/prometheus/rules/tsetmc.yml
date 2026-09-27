@@ -1,0 +1,183 @@
+# Alert rules. Every rule is unit-tested in tsetmc_test.yml (`promtool test rules`).
+# Severity: critical = data is being lost or users see nothing; warning = degraded.
+# Annotations are Persian because the alert relay posts them to operators as-is.
+groups:
+  - name: tsetmc-recording
+    rules:
+      - record: tsetmc:collector_last_success_age_seconds
+        expr: time() - max(tsetmc_collector_last_success_timestamp_seconds)
+      - record: tsetmc:source_error_ratio:rate10m
+        expr: |
+          sum(rate(tsetmc_source_requests_total{outcome!="ok"}[10m]))
+            / sum(rate(tsetmc_source_requests_total[10m]))
+      - record: tsetmc:api_5xx_ratio:rate5m
+        expr: |
+          sum(rate(tsetmc_api_requests_total{status=~"5.."}[5m]))
+            / sum(rate(tsetmc_api_requests_total[5m]))
+      - record: tsetmc:api_latency_p95:rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(tsetmc_api_request_duration_seconds_bucket{route!~".*/metrics"}[5m])))
+
+  - name: tsetmc-collector
+    rules:
+      - alert: TsetmcCollectorDown
+        expr: absent(up{job="collector"} == 1)
+        for: 2m
+        labels: {severity: critical, component: collector}
+        annotations:
+          summary: "هیچ collectorی در دسترس نیست"
+          description: "Prometheus به هیچ نمونه‌ای از collector دسترسی ندارد. در ساعات بازار یعنی از دست رفتن داده‌ی دقیقه‌ای که بعداً قابل بازیابی نیست."
+          runbook: "docs/11-monitoring.md#collector-down"
+
+      - alert: TsetmcNoLeader
+        expr: sum(tsetmc_collector_leader) == 0 and on() max(up{job="collector"}) == 1
+        for: 3m
+        labels: {severity: critical, component: collector}
+        annotations:
+          summary: "collector رهبر ندارد"
+          description: "collector در حال اجراست اما هیچ نمونه‌ای lease رهبری را ندارد، پس داده‌ای جمع نمی‌شود. Redis را بررسی کنید."
+          runbook: "docs/11-monitoring.md#no-leader"
+
+      - alert: TsetmcSplitBrain
+        expr: sum(tsetmc_collector_leader) > 1
+        for: 5m
+        labels: {severity: warning, component: collector}
+        annotations:
+          summary: "بیش از یک collector خود را رهبر می‌داند"
+          description: "{{ $value }} نمونه هم‌زمان داده جمع می‌کنند. داده خراب نمی‌شود (ReplacingMergeTree) ولی بار روی TSETMC چند برابر است. معمولاً یعنی Redis در دسترس نیست."
+          runbook: "docs/11-monitoring.md#split-brain"
+
+      - alert: TsetmcCollectorFailing
+        expr: max(tsetmc_collector_failed_streak) >= 3
+        for: 1m
+        labels: {severity: critical, component: collector}
+        annotations:
+          summary: "چرخه‌های دریافت پشت سر هم شکست می‌خورند"
+          description: "{{ $value }} چرخه‌ی ناموفق پیاپی. شایع‌ترین علت: TSETMC از این IP در دسترس نیست (VPN روشن است)."
+          runbook: "docs/11-monitoring.md#collector-failing"
+
+      - alert: TsetmcDataStale
+        # Left side carries $value: the age, not the 0/1 of the gate.
+        # Gate on market_open (live: flips to 0 the instant the market closes),
+        # not session_confirmed (sticky: stays 1 for the rest of the calendar
+        # day once TSETMC has traded, so it would still read 1 all evening
+        # after close and fire a false positive here).
+        expr: |
+          (time() - max(tsetmc_collector_last_success_timestamp_seconds)) > 300
+            and on() max(tsetmc_market_open) == 1
+        for: 2m
+        labels: {severity: critical, component: collector}
+        annotations:
+          summary: "بازار باز است ولی داده‌ی تازه ثبت نمی‌شود"
+          description: "آخرین چرخه‌ی موفق {{ $value | humanizeDuration }} پیش بوده است."
+          runbook: "docs/11-monitoring.md#data-stale"
+
+      - alert: TsetmcLowCompleteness
+        expr: |
+          min(tsetmc_collector_funds_received / tsetmc_collector_funds_expected) < 0.9
+            and on() max(tsetmc_market_open) == 1
+        for: 10m
+        labels: {severity: warning, component: collector}
+        annotations:
+          summary: "کمتر از ۹۰٪ صندوق‌ها در هر چرخه دریافت می‌شوند"
+          description: "کامل بودن داده {{ $value | humanizePercentage }} است."
+          runbook: "docs/11-monitoring.md#low-completeness"
+
+      - alert: TsetmcSourceErrors
+        expr: tsetmc:source_error_ratio:rate10m > 0.2
+        for: 10m
+        labels: {severity: warning, component: collector}
+        annotations:
+          summary: "بخش زیادی از درخواست‌ها به TSETMC خطا می‌گیرند"
+          description: "{{ $value | humanizePercentage }} درخواست‌ها (پس از retry) ناموفق بوده‌اند."
+          runbook: "docs/11-monitoring.md#source-errors"
+
+      - alert: TsetmcSlowCycles
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(tsetmc_collector_cycle_duration_seconds_bucket[15m]))) > 45
+        for: 15m
+        labels: {severity: warning, component: collector}
+        annotations:
+          summary: "چرخه‌های دریافت به سقف ۶۰ ثانیه نزدیک شده‌اند"
+          description: "صدک ۹۵ مدت چرخه {{ $value | humanize }} ثانیه است. در این وضع دقیقه‌ها جا می‌افتند."
+          runbook: "docs/11-monitoring.md#slow-cycles"
+
+  - name: tsetmc-api
+    rules:
+      - alert: TsetmcApiDown
+        expr: absent(up{job="api"} == 1)
+        for: 2m
+        labels: {severity: critical, component: api}
+        annotations:
+          summary: "API در دسترس نیست"
+          description: "پنل کاربری هیچ داده‌ای نشان نمی‌دهد."
+          runbook: "docs/11-monitoring.md#api-down"
+
+      - alert: TsetmcApiErrors
+        expr: tsetmc:api_5xx_ratio:rate5m > 0.05
+        for: 5m
+        labels: {severity: warning, component: api}
+        annotations:
+          summary: "بیش از ۵٪ پاسخ‌های API خطای سرور هستند"
+          description: "نسبت خطا {{ $value | humanizePercentage }}."
+          runbook: "docs/11-monitoring.md#api-errors"
+
+      - alert: TsetmcApiSlow
+        expr: tsetmc:api_latency_p95:rate5m > 0.5
+        for: 10m
+        labels: {severity: warning, component: api}
+        annotations:
+          summary: "API کند شده است"
+          description: "صدک ۹۵ زمان پاسخ {{ $value | humanize }} ثانیه است (معمولاً زیر ۰٫۰۵). کش Redis را بررسی کنید."
+          runbook: "docs/11-monitoring.md#api-slow"
+
+  - name: tsetmc-database
+    rules:
+      - alert: ClickHouseDown
+        expr: absent(up{job="clickhouse"} == 1)
+        for: 2m
+        labels: {severity: critical, component: database}
+        annotations:
+          summary: "ClickHouse در دسترس نیست"
+          description: "نه داده‌ای ذخیره می‌شود و نه API پاسخ می‌دهد."
+          runbook: "docs/11-monitoring.md#clickhouse-down"
+
+      - alert: ClickHouseUnavailableForApi
+        expr: sum(rate(tsetmc_api_database_unavailable_total[5m])) > 0
+        for: 2m
+        labels: {severity: critical, component: database}
+        annotations:
+          summary: "API نمی‌تواند به ClickHouse وصل شود"
+          description: "درخواست‌ها با 503 پاسخ داده می‌شوند."
+          runbook: "docs/11-monitoring.md#clickhouse-down"
+
+      - alert: ClickHouseTooManyParts
+        expr: max(ClickHouseAsyncMetrics_MaxPartCountForPartition) > 300
+        for: 10m
+        labels: {severity: warning, component: database}
+        annotations:
+          summary: "تعداد part‌های یک پارتیشن زیاد است"
+          description: "{{ $value }} part در یک پارتیشن. ادغام‌ها عقب افتاده‌اند؛ اگر به ۳۰۰۰ برسد درج متوقف می‌شود."
+          runbook: "docs/11-monitoring.md#too-many-parts"
+
+      - alert: ClickHouseDiskLow
+        expr: |
+          min(ClickHouseAsyncMetrics_FilesystemMainPathAvailableBytes
+            / ClickHouseAsyncMetrics_FilesystemMainPathTotalBytes) < 0.1
+        for: 10m
+        labels: {severity: warning, component: database}
+        annotations:
+          summary: "فضای دیسک ClickHouse کمتر از ۱۰٪ است"
+          description: "فضای آزاد {{ $value | humanizePercentage }}."
+          runbook: "docs/11-monitoring.md#disk-low"
+
+      - alert: ClickHouseFailedQueries
+        expr: sum(rate(ClickHouseProfileEvents_FailedQuery[5m])) > 0.1
+        for: 10m
+        labels: {severity: warning, component: database}
+        annotations:
+          summary: "کوئری‌های ناموفق در ClickHouse"
+          description: "{{ $value | humanize }} کوئری ناموفق در ثانیه."
+          runbook: "docs/11-monitoring.md#failed-queries"

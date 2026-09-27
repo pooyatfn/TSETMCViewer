@@ -1,0 +1,36 @@
+# ADR 0002 — پایتون ۳.۱۲ با asyncio، httpx و FastAPI
+
+<div class="adr-meta"><span>وضعیت: پذیرفته‌شده</span><span>تاریخ: روز ۱</span></div>
+
+!!! abstract "خلاصه"
+    گلوگاه شبکه است، نه CPU. asyncio صدها درخواست هم‌زمان را در یک thread و با کنترل دقیق نرخ مدیریت می‌کند. FastAPI و Pydantic همان مدل تایپ‌شده را از collector تا API حفظ می‌کنند.
+
+## زمینه
+
+کار collector تقریباً کاملاً **I/O-bound** است: در هر دقیقه بیش از ۱۰۰ درخواست HTTP که بیشتر وقتشان صرف انتظار برای شبکه می‌شود. محاسبات مالی سبک‌اند. API هم باید هم‌زمان چند کوئری را به ClickHouse بفرستد.
+
+## تصمیم
+
+| جزء | انتخاب | دلیل |
+|---|---|---|
+| زبان | Python 3.12 | اکوسیستم داده و مالی؛ نوع‌دهی مدرن (`Self`، `match`). |
+| هم‌زمانی | `asyncio` | ۱۲۰ درخواست هم‌زمان در یک thread، با `Semaphore` برای کنترل نرخ. |
+| HTTP | `httpx.AsyncClient` | async، connection pooling، `MockTransport`/`respx` برای تست. |
+| retry | پیاده‌سازی داخلی (≈۳۰ خط) | backoff نمایی با jitter کامل؛ فقط برای خطاهای گذرا (timeout، ۴۲۹، ۵xx). وابستگی `tenacity` برای این مقدار کد لازم نبود. |
+| اعتبارسنجی | Pydantic v2 | پارس پاسخ‌ها با alias برای نام فیلدهای TSETMC؛ تنظیمات با `pydantic-settings`. |
+| API | FastAPI | async، OpenAPI خودکار (`/docs`)، تزریق وابستگی برای تست‌پذیری. |
+| ClickHouse | `clickhouse-connect` (async) | کلاینت رسمی، پروتکل HTTP و درج ستونی. |
+| مدیریت پکیج | `uv` + `uv.lock` | نصب قطعی و سریع؛ لایه‌ی Docker تا تغییر lock کش می‌ماند. |
+| کیفیت کد | `ruff` (lint + format)، `mypy --strict`، `pytest` | یک ابزار سریع برای lint و format؛ تایپ سخت‌گیرانه از ابتدا. |
+
+## گزینه‌های ردشده
+
+- **Go**: collector سریع‌تری می‌داد، اما گلوگاه شبکه است نه CPU. تحلیل‌های مالی و pandas در پایتون راحت‌ترند.
+- **`requests` + threads**: برای ۱۲۰ درخواست قابل انجام است، اما مدیریت timeout، لغو و محدودیت هم‌زمانی در asyncio تمیزتر است.
+- **Celery / Airflow**: برای «یک کار در هر دقیقه» بیش از حد سنگین‌اند (ADR 0004).
+- **Django**: ORM آن به ClickHouse نمی‌خورد و admin و auth را لازم نداریم.
+
+## پیامدها
+
+- همه‌ی کد I/O باید async باشد. یک فراخوانی blocking کل حلقه را کند می‌کند (قاعده‌ی `ASYNC` در ruff کمک می‌کند).
+- `mypy --strict` هزینه‌ی اولیه دارد، اما در مصاحبه‌ی فنی و نگهداری سود می‌دهد.

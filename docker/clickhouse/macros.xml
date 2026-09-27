@@ -1,0 +1,13 @@
+<!--
+  ADR 0011: one shard, two replicas. Both clickhouse-0 and clickhouse-1 use this
+  same file; only the replica name differs, and it comes from an env var so the
+  image itself stays identical for both containers (docker-compose sets
+  CLICKHOUSE_REPLICA_NAME per service). {database} and {table} used in the
+  Replicated engine path are ClickHouse built-ins, not defined here.
+-->
+<clickhouse>
+  <macros>
+    <shard>1</shard>
+    <replica from_env="CLICKHOUSE_REPLICA_NAME">replica</replica>
+  </macros>
+</clickhouse>

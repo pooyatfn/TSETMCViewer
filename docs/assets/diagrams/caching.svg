@@ -1,0 +1,50 @@
+<svg class="dg" viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="لایه‌های کش">
+  <defs>
+    <marker id="ca-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <marker id="ca-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead hot" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <!-- write side -->
+  <rect class="zone" x="640" y="20" width="305" height="360" rx="14"/>
+  <text class="t-zone" x="792" y="42" text-anchor="middle">سمت نوشتن (collector)</text>
+  <rect class="src" x="660" y="60" width="265" height="72" rx="10"/>
+  <text class="t-body" x="792" y="86" text-anchor="middle">① کش مرجع در حافظه</text>
+  <text class="t-small" x="792" y="106" text-anchor="middle">فهرست صندوق‌ها و اطلاعات نماد · یک بار در روز</text>
+  <text class="t-small" x="792" y="122" text-anchor="middle">۱۲۰ درخواست کمتر در هر دقیقه</text>
+  <rect class="src" x="660" y="146" width="265" height="72" rx="10"/>
+  <text class="t-body" x="792" y="172" text-anchor="middle">② دریافت فقط تغییرات: رد شد</text>
+  <text class="t-small" x="792" y="192" text-anchor="middle">با gzip، دیده‌بان کامل ۶۱۰ کیلوبایت در ۱ ثانیه است</text>
+  <text class="t-small" x="792" y="208" text-anchor="middle">بی‌وضعیت ماندن ارزش ۰٫۶ ثانیه را دارد</text>
+  <rect class="store" x="660" y="232" width="265" height="72" rx="10"/>
+  <text class="t-body" x="792" y="258" text-anchor="middle">③ Materialized Views</text>
+  <text class="t-small" x="792" y="278" text-anchor="middle">تجمیع از پیش محاسبه‌شده در ClickHouse</text>
+  <text class="t-small" x="792" y="294" text-anchor="middle">کوئری پنل روی چند هزار ردیف، نه میلیون‌ها</text>
+  <rect class="core" x="660" y="318" width="265" height="50" rx="10"/>
+  <text class="t-body" x="792" y="340" text-anchor="middle">انتشار «تیک N» روی Redis</text>
+  <text class="t-small" x="792" y="358" text-anchor="middle">پس از commit شدن داده‌ی دقیقه</text>
+  <!-- read side -->
+  <rect class="zone" x="15" y="20" width="600" height="360" rx="14"/>
+  <text class="t-zone" x="315" y="42" text-anchor="middle">سمت خواندن (API و مرورگر)</text>
+  <rect class="serve" x="345" y="90" width="250" height="110" rx="10"/>
+  <text class="t-body" x="470" y="116" text-anchor="middle">④ کش پاسخ در Redis</text>
+  <text class="t-mono" x="470" y="140" text-anchor="middle">key = endpoint : params : tick</text>
+  <text class="t-small" x="470" y="162" text-anchor="middle">کلید شامل شماره‌ی تیک است</text>
+  <text class="t-small" x="470" y="180" text-anchor="middle">تیک جدید ⇐ کلید جدید، بدون حذف دستی</text>
+  <rect class="box" x="35" y="90" width="260" height="110" rx="10"/>
+  <text class="t-body" x="165" y="116" text-anchor="middle">⑤ کش HTTP مرورگر</text>
+  <text class="t-mono" x="165" y="140" text-anchor="middle">ETag · Cache-Control: max-age</text>
+  <text class="t-small" x="165" y="162" text-anchor="middle">عمر کش = ثانیه‌های مانده تا تیک بعد</text>
+  <text class="t-small" x="165" y="180" text-anchor="middle">پاسخ 304 بدون بدنه</text>
+  <rect class="box" x="35" y="250" width="560" height="90" rx="10"/>
+  <text class="t-body" x="315" y="278" text-anchor="middle">⑥ push با SSE</text>
+  <text class="t-small" x="315" y="300" text-anchor="middle">سرور پیام «تیک N» را به مرورگرهای باز می‌فرستد</text>
+  <text class="t-small" x="315" y="318" text-anchor="middle">پنل فقط وقتی داده‌ی تازه هست درخواست می‌دهد، نه با polling</text>
+  <!-- edges -->
+  <path class="edge" d="M660,268 C 630,268 620,160 597,150" marker-end="url(#ca-a)"/>
+  <path class="edge" d="M345,145 L297,145" marker-end="url(#ca-a)"/>
+  <path class="edge hot" d="M660,343 C 630,343 620,300 597,298" marker-end="url(#ca-h)"/>
+  <path class="edge hot dash" d="M470,250 L470,202" marker-end="url(#ca-h)"/>
+</svg>
