@@ -97,3 +97,5 @@ docker/                Dockerfileها (سرویس، پنل + nginx) و پیکر�
 monitoring/            Prometheus (قواعد + تست)، Alertmanager، Grafana (داشبوردها به‌صورت کد)
 docs/                  مستندات فارسی (MkDocs Material، راست‌به‌چپ) و ADRها
 ```
+
+https://github.com/user-attachments/assets/172f191f-d10f-495b-b69f-0a01888ecb5b
