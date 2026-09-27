@@ -49,10 +49,10 @@ hide:
 
 </div>
 
-<figure class="shot" markdown>
-![پنل](assets/screens/overview-light.webp#only-light)
-![پنل در پوسته‌ی تیره](assets/screens/overview-dark.webp#only-dark)
-<figcaption markdown="span">پنل کاربری روی داده‌ی واقعی پایان جلسه‌ی ۱ مهر ۱۴۰۵. توضیح هر نمودار در [پنل و نمودارها](06-dashboard.md) آمده است.</figcaption>
+<figure class="shot">
+<img src="assets/screens/overview-light.webp#only-light" alt="پنل">
+<img src="assets/screens/overview-dark.webp#only-dark" alt="پنل در پوسته‌ی تیره">
+<figcaption>پنل کاربری روی داده‌ی واقعی پایان جلسه‌ی ۱ مهر ۱۴۰۵. توضیح هر نمودار در <a href="06-dashboard.md">پنل و نمودارها</a> آمده است.</figcaption>
 </figure>
 
 <div class="kpis">
@@ -108,8 +108,8 @@ hide:
 
 ## معماری در یک نگاه
 
-<figure class="diagram" markdown>
-![معماری کلی سرویس](assets/diagrams/architecture.svg)
+<figure class="diagram">
+<img src="assets/diagrams/architecture.svg" alt="معماری کلی سرویس">
 <figcaption>جریان داده از راست به چپ: منبع ← دریافت و پردازش ← ذخیره‌سازی ← API و کش ← پنل. رویداد «تیک جدید» (خط نارنجی) کش را باطل می‌کند و داده‌ی تازه را به پنل می‌فرستد.</figcaption>
 </figure>
 

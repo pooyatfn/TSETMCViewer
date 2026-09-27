@@ -199,7 +199,8 @@
   border: 1px solid var(--md-default-fg-color--lightest);
   max-width: 100%;
 }
-.md-typeset figure.diagram svg { width: 100%; height: auto; display: block; }
+.md-typeset figure.diagram svg,
+.md-typeset figure.diagram img { width: 100%; height: auto; display: block; }
 .md-typeset figure.diagram figcaption {
   font-size: .75rem; color: var(--md-default-fg-color--light); margin-top: .6rem; max-width: none;
 }

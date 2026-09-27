@@ -9,9 +9,9 @@
   <div class="kpi"><b>۲۸۵ KB</b><span>حجم gzip جاوااسکریپت پنل، همراه با ECharts</span></div>
 </div>
 
-<figure class="shot" markdown>
-![نمای کلی پنل](assets/screens/overview-light.webp#only-light)
-![نمای کلی پنل در پوسته‌ی تیره](assets/screens/overview-dark.webp#only-dark)
+<figure class="shot">
+<img src="assets/screens/overview-light.webp#only-light" alt="نمای کلی پنل">
+<img src="assets/screens/overview-dark.webp#only-dark" alt="نمای کلی پنل در پوسته‌ی تیره">
 <figcaption>شکل ۱ — بالای داشبورد روی داده‌ی واقعی پایان جلسه‌ی ۱ مهر ۱۴۰۵: کاشی‌های شاخص و نقشه‌ی بازار. پوسته‌ی روشن و تیره هر کدام رنگ‌های جداگانه‌ی خود را دارند و این تصویر هم با پوسته‌ی همین سایت عوض می‌شود.</figcaption>
 </figure>
 
@@ -84,8 +84,8 @@
 
 <div class="ask">سؤال: امروز در یک نگاه چه خبر است؟</div>
 
-<figure class="shot" markdown>
-![کاشی‌های شاخص](assets/screens/kpis.webp)
+<figure class="shot">
+<img src="assets/screens/kpis.webp" alt="کاشی‌های شاخص">
 </figure>
 
 | کاشی | چرا این عدد و نه عدد دیگر |
@@ -102,8 +102,8 @@
 
 <div class="ask">سؤال: پول کجاست و امروز چطور حرکت کرد؟</div>
 
-<figure class="shot" markdown>
-![نقشه‌ی بازار](assets/screens/treemap.webp)
+<figure class="shot">
+<img src="assets/screens/treemap.webp" alt="نقشه‌ی بازار">
 <figcaption>شکل ۲ — مساحت هر خانه خالص دارایی صندوق است و رنگش تغییر قیمت امروز (از قرمز −۳٪ تا آبی +۳٪). صندوق‌ها بر اساس نوع گروه‌بندی شده‌اند.</figcaption>
 </figure>
 
@@ -127,8 +127,8 @@
 
 <div class="ask">سؤال: روند چند هفته‌ی اخیر چیست و پول به کدام نوع صندوق می‌رود؟</div>
 
-<figure class="shot" markdown>
-![ورود پول روزانه](assets/screens/daily-flows.webp)
+<figure class="shot">
+<img src="assets/screens/daily-flows.webp" alt="ورود پول روزانه">
 <figcaption>شکل ۳ — ستون‌های انباشته با علامت: ورودها بالای صفر و خروج‌ها پایین صفر روی هم می‌نشینند. ستون کم‌رنگ با * روزی است که جریان ریالی آن از حجم × میانگین قیمت برآورد شده است.</figcaption>
 </figure>
 
@@ -141,8 +141,8 @@
 
 <div class="ask">سؤال: بازار صندوق‌ها را گران می‌خرد یا ارزان، و کجا؟</div>
 
-<figure class="shot" markdown>
-![نمودار حباب](assets/screens/premium.webp)
+<figure class="shot">
+<img src="assets/screens/premium.webp" alt="نمودار حباب">
 <figcaption>شکل ۴ — هر نقطه یک صندوق است: محور افقی حباب، ردیف نوع صندوق، اندازه‌ی نقطه خالص دارایی. خط سیاه کوتاه میانه‌ی هر ردیف است.</figcaption>
 </figure>
 
@@ -155,8 +155,8 @@
 
 <div class="ask">سؤال: پول حقیقی دنبال صندوق‌های گران است یا ارزان؟</div>
 
-<figure class="shot" markdown>
-![نقشه‌ی پول](assets/screens/money-map.webp)
+<figure class="shot">
+<img src="assets/screens/money-map.webp" alt="نقشه‌ی پول">
 <figcaption>شکل ۵ — محور افقی حباب، محور عمودی ورود پول حقیقی امروز به نسبت خالص دارایی همان صندوق. چهار ربع چهار رفتار متفاوت را نشان می‌دهند.</figcaption>
 </figure>
 
@@ -188,8 +188,8 @@
 
 <div class="ask">سؤال: چه کسی جلو افتاد و چه کسی عقب ماند، در کدام افق؟</div>
 
-<figure class="shot half" markdown>
-![نقشه‌ی حرارتی بازده](assets/screens/returns.webp)
+<figure class="shot half">
+<img src="assets/screens/returns.webp" alt="نقشه‌ی حرارتی بازده">
 <figcaption>شکل ۶ — ۲۵ صندوق بزرگ (بر اساس خالص دارایی) در پنج افق.</figcaption>
 </figure>
 
@@ -212,8 +212,8 @@
 
 <div class="ask">سؤال: چقدر می‌توان به اعداد این صفحه اعتماد کرد؟</div>
 
-<figure class="shot half" markdown>
-![کارت کیفیت داده](assets/screens/quality.webp)
+<figure class="shot half">
+<img src="assets/screens/quality.webp" alt="کارت کیفیت داده">
 <figcaption>شکل ۷ — کامل بودن جلسه، سهم هر پرچم کیفیت از ردیف‌های امروز، و رخدادهای اعتبارسنجی همراه با اقدامی که پیش‌پردازش انجام داد.</figcaption>
 </figure>
 
@@ -231,8 +231,8 @@
 
 جدول همه‌ی صندوق‌های خانواده‌ی سهامی را با همه‌ی شاخص‌ها نشان می‌دهد: قابل مرتب‌سازی روی هر ستون، قابل جستجو با نماد یا نام، و با صفحه‌کلید قابل پیمایش. مقدارهای نامعتبر (مثل حباب اهرمی‌ها) با «—» نشان داده می‌شوند و در مرتب‌سازی همیشه آخر می‌آیند.
 
-<figure class="shot" markdown>
-![صفحه‌ی صندوق](assets/screens/fund-detail.webp)
+<figure class="shot">
+<img src="assets/screens/fund-detail.webp" alt="صفحه‌ی صندوق">
 <figcaption>شکل ۸ — صفحه‌ی صندوق «پالایش»: شاخص‌های لحظه‌ای، قیمت و NAV درون‌روز (روی یک محور، به تومان)، تاریخچه‌ی قیمت و ورود پول، و بازده در پنج افق.</figcaption>
 </figure>
 
@@ -242,8 +242,8 @@
 
 <div class="ask">سؤال: همین همه‌ی این تصمیم‌ها و جزئیات مالی کجا مستند شده؟</div>
 
-<figure class="shot" markdown>
-![تب مستندات](assets/screens/docs-tab.webp)
+<figure class="shot">
+<img src="assets/screens/docs-tab.webp" alt="تب مستندات">
 <figcaption>شکل ۹ — همین ۱۲ سند و همه‌ی ADRها، رندر‌شده از همان فایل‌های <code>docs/*.md</code>، بدون خلاصه‌سازی یا سرویس جدا.</figcaption>
 </figure>
 

@@ -2,8 +2,8 @@
 
 <p class="lead">سیستم از چه اجزایی ساخته شده، داده در آن چطور جریان پیدا می‌کند و کدام اصول طراحی این ساختار را شکل داده‌اند.</p>
 
-<figure class="diagram" markdown>
-![معماری کلی سرویس](assets/diagrams/architecture.svg)
+<figure class="diagram">
+<img src="assets/diagrams/architecture.svg" alt="معماری کلی سرویس">
 <figcaption>شکل ۱ — نمای کلی سرویس. جهت جریان داده از راست به چپ است.</figcaption>
 </figure>
 
@@ -53,8 +53,8 @@
 
 ## لایه‌های داده
 
-<figure class="diagram" markdown>
-![لایه‌های داده](assets/diagrams/data-layers.svg)
+<figure class="diagram">
+<img src="assets/diagrams/data-layers.svg" alt="لایه‌های داده">
 <figcaption>شکل ۲ — داده از «خام» به «تمیز» و سپس «تحلیلی» می‌رسد. API هیچ‌وقت داده‌ی خام را نمی‌خواند.</figcaption>
 </figure>
 
@@ -73,8 +73,8 @@
 
 ## یک چرخه‌ی دریافت
 
-<figure class="diagram" markdown>
-![بودجه‌ی زمانی یک چرخه‌ی دقیقه‌ای](assets/diagrams/cycle.svg)
+<figure class="diagram">
+<img src="assets/diagrams/cycle.svg" alt="بودجه‌ی زمانی یک چرخه‌ی دقیقه‌ای">
 <figcaption>شکل ۳ — بودجه‌ی زمانی یک چرخه بر اساس اندازه‌گیری واقعی. با فشرده‌سازی gzip دیده‌بان کل بازار حدود ۱ ثانیه طول می‌کشد و بیشترین زمان صرف درخواست‌های NAV می‌شود (<a href="adr/0006-caching.md">ADR 0006، بازبینی روز ۴</a>).</figcaption>
 </figure>
 

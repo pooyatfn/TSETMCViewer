@@ -3,6 +3,13 @@ site_description: سرویس دریافت، پاک‌سازی و تحلیل لح
 docs_dir: docs
 site_dir: site
 strict: true
+# Keep the built site's file layout identical to docs/'s source layout (no
+# extra per-page subdirectories). Figures use raw <img>/<a> tags so they also
+# render on GitHub's own file viewer (see docs/*.md figure blocks); those raw
+# tags are not path-rewritten by MkDocs the way markdown-syntax links are, so
+# their relative paths only resolve correctly when the output mirrors the
+# source tree one-to-one.
+use_directory_urls: false
 
 theme:
   name: material

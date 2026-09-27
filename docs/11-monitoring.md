@@ -9,8 +9,8 @@
   <div class="kpi"><b>۰</b><span>رمز در فایل‌های پیکربندی؛ همه در ‎.env</span></div>
 </div>
 
-<figure class="diagram" markdown>
-![معماری پایش و هشدار](assets/diagrams/monitoring.svg)
+<figure class="diagram">
+<img src="assets/diagrams/monitoring.svg" alt="معماری پایش و هشدار">
 <figcaption>شکل ۱ — هر سرویس خودش <code>/metrics</code> دارد و exporter جداگانه‌ای لازم نیست؛ ClickHouse هم خروجی داخلی خودش را دارد. خط نارنجی مسیر هشدار است.</figcaption>
 </figure>
 
@@ -59,9 +59,9 @@ TSETMCViewer
 راهنما: http://localhost:8001/11-monitoring/#collector-failing
 ```
 
-<figure class="shot" markdown>
-![بازوی هشدار در بله](assets/screens/bale-alerts.webp)
-<figcaption markdown="span">همان بازو (`TSETMCViewerAlertBot`) روی گروه واقعی در بله: هشدار بحرانی «collector در دسترس نیست» ساعت ۱۲:۲۸ و رفعش ساعت ۱۲:۳۸، سپس هشدار «داده‌ی تازه ثبت نمی‌شود» و رفعش — هر پیام با لینک راهنمای همین صفحه.</figcaption>
+<figure class="shot">
+<img src="assets/screens/bale-alerts.webp" alt="بازوی هشدار در بله">
+<figcaption>همان بازو (<code>TSETMCViewerAlertBot</code>) روی گروه واقعی در بله: هشدار بحرانی «collector در دسترس نیست» ساعت ۱۲:۲۸ و رفعش ساعت ۱۲:۳۸، سپس هشدار «داده‌ی تازه ثبت نمی‌شود» و رفعش — هر پیام با لینک راهنمای همین صفحه.</figcaption>
 </figure>
 
 از این نمونه‌ی واقعی هم دیده می‌شود: relay فقط رخداد را می‌فرستد، نه هر تکرار Alertmanager (هر پیام یک بار «شروع» و یک بار «رفع شد»)، و لینک راهنما در هر دو هست.
@@ -126,8 +126,8 @@ TSETMCViewer
 
 هشدارهای **بحرانی** یعنی داده از دست می‌رود یا کاربر چیزی نمی‌بیند (تکرار هر ۳۰ دقیقه). **هشدار** یعنی کیفیت پایین آمده است (تکرار هر ۴ ساعت). Alertmanager علت ریشه‌ای را جایگزین پیامدهایش می‌کند: وقتی ClickHouse قطع است، «داده‌ی قدیمی» و «خطای API» جداگانه فرستاده نمی‌شوند، و وقتی collector پشت سر هم شکست می‌خورد، «خطای منبع» و «کامل نبودن داده» ساکت می‌مانند. پس هر رخداد یک پیام است.
 
-<figure class="shot half" markdown>
-![Alertmanager](assets/screens/alertmanager.webp)
+<figure class="shot half">
+<img src="assets/screens/alertmanager.webp" alt="Alertmanager">
 <figcaption>Alertmanager در تمرین قطعی: هشدار بحرانی collector، گروه‌بندی‌شده و آماده‌ی ارسال به relay.</figcaption>
 </figure>
 
