@@ -1,62 +1,62 @@
-# ADR 0009 — پایش با Prometheus، Grafana و Alertmanager
+# ADR 0009 — Observability with Prometheus, Grafana, and Alertmanager
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده</span><span>تاریخ: پس از روز ۷</span><span>پیاده‌سازی: همان روز</span></div>
+<div class="adr-meta"><span>Status: Accepted</span><span>Date: After day 7</span><span>Implementation: same day</span></div>
 
-!!! abstract "خلاصه"
-    هر سرویس خودش معیارهایش را در `/metrics` منتشر می‌کند و ClickHouse هم از خروجی داخلی خودش استفاده می‌کند. Prometheus جمع می‌کند، Grafana داشبوردهای تعریف‌شده در کد را نشان می‌دهد، و Alertmanager هشدارها را به یک relay کوچک در همین مخزن می‌دهد که آن‌ها را به فارسی به بله، تلگرام یا webhook می‌فرستد. قواعد هشدار تست واحد دارند و یک تست تضمین می‌کند هیچ داشبوردی معیار ناموجود نپرسد.
+!!! abstract "Summary"
+    Each service publishes its own metrics at `/metrics`, and ClickHouse uses its own built-in exporter. Prometheus scrapes them, Grafana shows dashboards defined in code, and Alertmanager hands alerts to a small relay in this same repo, which sends them in Persian to Bale, Telegram, or a webhook. Alert rules have unit tests, and a test guarantees that no dashboard queries a metric that doesn't exist.
 
-## زمینه
+## Context
 
-تا این مرحله سلامت سرویس از سه جا خوانده می‌شد: `/health`، لاگ‌ها و healthcheck داکر ([آزمون و مقاوم‌سازی](../09-quality-engineering.md)). این‌ها به «الان سالم است؟» جواب می‌دهند، ولی به «از کی خراب است؟»، «روند چیست؟» و «چه کسی باید خبردار شود؟» نه. سرویسی که داده‌ی غیرقابل‌بازیابی جمع می‌کند باید خرابی را **در همان دقیقه‌ها** به یک انسان خبر بدهد.
+Up to this point, service health was read from three places: `/health`, the logs, and Docker's healthcheck ([Testing and Hardening](../09-quality-engineering.md)). These answer "is it healthy right now?", but not "how long has it been broken?", "what's the trend?", or "who should be notified?". A service that collects unrecoverable data needs to notify a human of an outage **within minutes**.
 
-محدودیت‌های محیط:
+Environment constraints:
 
-- سرور در ایران است: تلگرام معمولاً در دسترس نیست و دانلود ایمیج‌ها با VPN انجام می‌شود.
-- اپراتور فارسی‌زبان است و پیام هشدار باید بدون دانستن PromQL قابل فهم باشد.
+- The server is in Iran: Telegram is usually unreachable, and image downloads are done over a VPN.
+- The operator speaks Persian, and alert messages must be understandable without knowing PromQL.
 
-## تصمیم
+## Decision
 
-| جزء | انتخاب | دلیل |
+| Component | Choice | Reason |
 |---|---|---|
-| معیارها | `prometheus_client` در خود سرویس‌ها | بدون exporter جداگانه. همه‌ی نام‌ها و برچسب‌ها در `telemetry.py` هستند |
-| ClickHouse | خروجی Prometheus داخلی (`config.d`) | خود پایگاه داده صدها معیار دقیق دارد. exporter جداگانه لازم نیست |
-| جمع‌آوری | Prometheus 2.55 با `dns_sd` برای collector | همه‌ی نمونه‌های collector (رهبر و آماده‌به‌کار) خودکار پیدا می‌شوند |
-| نمایش | Grafana 11 با داشبوردهای provision‌شده از کد پایتون | بازبینی‌پذیر، تست‌پذیر، بدون «داشبوردی که فقط روی یک سیستم وجود دارد» |
-| هشدار | Alertmanager + **alert-relay** داخلی | گروه‌بندی و جلوگیری از پیام تکراری از Alertmanager؛ تحویل به بله و متن فارسی از relay |
-| اجرا | profile `monitoring` در compose | stack اصلی سبک می‌ماند و پایش با یک فرمان اضافه می‌شود |
+| Metrics | `prometheus_client` inside each service | No separate exporter. All names and labels live in `telemetry.py` |
+| ClickHouse | Built-in Prometheus exporter (`config.d`) | The database itself already exposes hundreds of precise metrics. No separate exporter needed |
+| Scraping | Prometheus 2.55 with `dns_sd` for the collector | All collector instances (leader and standby) are discovered automatically |
+| Display | Grafana 11 with dashboards provisioned from Python code | Reviewable, testable, no "dashboard that only exists on one system" |
+| Alerting | Alertmanager + internal **alert-relay** | Grouping and dedup from Alertmanager; delivery to Bale and Persian text from the relay |
+| Deployment | `monitoring` profile in compose | The core stack stays lightweight, and monitoring is added with one extra command |
 
-## گزینه‌های ردشده
+## Rejected Options
 
-| گزینه | چرا نه |
+| Option | Why not |
 |---|---|
-| **هشدار داخل Grafana** | قواعدش در JSON یا پایگاه داده‌ی Grafana ذخیره می‌شوند و مثل `promtool test rules` تست واحد ندارند |
-| **گیرنده‌ی تلگرام Alertmanager** | در ایران کار نمی‌کند، همیشه `parse_mode` می‌فرستد (که بله مستند نکرده است) و توکن را باید در فایل پیکربندی نوشت |
-| **exporterهای جداگانه (clickhouse_exporter و …)** | ClickHouse خودش خروجی دارد. هر exporter یک ایمیج، یک پورت و یک نقطه‌ی خرابی اضافه است |
-| **OpenTelemetry و Tempo/Loki** | ارزشمند برای چندین سرویس و trace بین آن‌ها. اینجا چهار سرویس کوچک داریم و معیار و لاگ کافی است |
-| **فقط لاگ و `/health`** | روند زمانی ندارد و کسی را خبر نمی‌کند |
+| **Alerting inside Grafana** | Its rules are stored as JSON or in Grafana's database and aren't unit-testable the way `promtool test rules` is |
+| **Alertmanager's Telegram receiver** | Doesn't work inside Iran, always sends `parse_mode` (which Bale doesn't document), and the token would have to be written into a config file |
+| **Separate exporters (clickhouse_exporter, etc.)** | ClickHouse already exposes its own metrics. Every exporter is one more image, one more port, one more failure point |
+| **OpenTelemetry and Tempo/Loki** | Valuable for many services and tracing across them. Here we have four small services, and metrics plus logs are enough |
+| **Logs and `/health` only** | No time series, and nobody gets notified |
 
-## پیامدها
+## Consequences
 
-- ➕ هر خرابی مهم در چند دقیقه به اپراتور خبر داده می‌شود، به فارسی و با لینک راهنمای رفع ([پایش و هشدار](../11-monitoring.md#هشدارها-و-راهنمای-رفع)).
-- ➕ قواعد هشدار ۸ سناریوی تست دارند و CI آن‌ها را با `promtool` اجرا می‌کند. آزمون دود CI هم بررسی می‌کند که Prometheus سرویس‌ها را بخواند و Grafana هر چهار داشبورد را داشته باشد.
-- ➕ یک تست پایتون جلوی داشبورد یا هشداری را می‌گیرد که معیار ناموجود بپرسد.
-- ➖ چهار ایمیج اضافه (Prometheus، Alertmanager، Grafana و relay از همان ایمیج سرویس). به همین دلیل پایش در یک profile اختیاری است.
-- ⚠️ relay یک نقطه‌ی خرابی در مسیر هشدار است. پیام‌های تحویل‌نشده در لاگ می‌مانند، Alertmanager تا ۵xx گرفتن دوباره تلاش می‌کند، و Prometheus خود relay را هم می‌خواند.
+- ➕ Any significant outage notifies the operator within minutes, in Persian, with a link to the fix guide ([Monitoring and Alerting](../11-monitoring.md#alerts-and-remediation-guide)).
+- ➕ Alert rules have 8 test scenarios, run by CI via `promtool`. The CI smoke test also checks that Prometheus is scraping the services and that Grafana has all four dashboards.
+- ➕ A Python test blocks any dashboard or alert that queries a nonexistent metric.
+- ➖ Four extra images (Prometheus, Alertmanager, Grafana, and a relay built from the same service image). That's why monitoring is an optional profile.
+- ⚠️ The relay is a single point of failure in the alert path. Undelivered messages stay in the logs, Alertmanager retries until it gets a 5xx, and Prometheus also scrapes the relay itself.
 
-## بازبینی: پیکربندی داخل ایمیج، نه mount
+## Review: Configuration Baked Into the Image, Not Mounted {#config-baked-into-image-not-mounted}
 
-**چه شد:** نخستین اجرا روی سیستم توسعه با `Access to file denied: /etc/clickhouse-server/config.d/prometheus.xml` متوقف شد و به‌دنبال آن همه‌ی سرویس‌ها با `dependency failed to start` ماندند. فایل‌های پیکربندی با bind mount به کانتینر داده می‌شدند و mount مجوز و مالک فایلِ میزبان را نگه می‌دارد. فایلی که روی میزبان `0600` است (فقط صاحبش) برای ClickHouse (uid ۱۰۱)، Prometheus و Alertmanager (nobody) و Grafana (uid ۴۷۲) خواندنی نیست.
+**What happened:** The first run on the development machine stopped with `Access to file denied: /etc/clickhouse-server/config.d/prometheus.xml`, followed by every service stuck in `dependency failed to start`. Config files were handed to the container via bind mount, and a mount keeps the host file's permissions and owner. A file that's `0600` (owner-only) on the host isn't readable by ClickHouse (uid 101), Prometheus and Alertmanager (nobody), or Grafana (uid 472).
 
-**تصمیم:** یک `docker/config.Dockerfile` با یک stage برای هر سرویس که پیکربندی را در ایمیج رسمی همان سرویس کپی می‌کند. هر stage سه گام دارد: (۱) با کاربر root فایل‌ها را کپی و مجوزها را با `chmod` ثابت می‌کند (پوشه‌ها `0755`، فایل‌ها `0444`)؛ (۲) به کاربری برمی‌گردد که سرویس با آن اجرا می‌شود؛ (۳) **با همان کاربر** پیکربندی را می‌خواند: `promtool check config` برای Prometheus، `amtool check-config` برای Alertmanager و خواندن همه‌ی فایل‌ها برای Grafana. پس مشکل مجوز یا خطای نحوی build را متوقف می‌کند، نه کانتینر را. compose هر stage را با `target` می‌سازد.
+**Decision:** A `docker/config.Dockerfile` with one stage per service that copies the config into that service's own official image. Each stage has three steps: (1) as root, copy the files and fix permissions with `chmod` (directories `0755`, files `0444`); (2) switch back to the user the service actually runs as; (3) **as that same user**, read the config: `promtool check config` for Prometheus, `amtool check-config` for Alertmanager, and reading every file for Grafana. So a permission or syntax error stops the build, not the container. Compose builds each stage with `target`.
 
-| | bind mount | کپی در ایمیج |
+| | Bind mount | Baked into the image |
 |---|---|---|
-| وابسته به مجوز، مالک یا SELinux میزبان | بله | خیر |
-| سرویس دقیقاً همان پیکربندی بازبینی‌شده را دارد | فقط اگر کسی فایل را روی سرور عوض نکرده باشد | بله؛ هر تغییر یک build است |
-| هزینه‌ی تغییر پیکربندی | restart | `up -d --build` (چند ثانیه؛ لایه‌ی پایه cache است) |
+| Depends on host permissions, owner, or SELinux | Yes | No |
+| Service has exactly the reviewed config | Only if nobody changed the file on the server | Yes; every change is a build |
+| Cost of a config change | restart | `up -d --build` (a few seconds; the base layer is cached) |
 
-**اصلاح‌های همراه:**
+**Related fixes:**
 
-- **تلاش اول با `COPY --chmod=0444` شکست خورد.** BuildKit این مجوز را به پوشه‌هایی که خودش می‌سازد هم می‌دهد. پوشه‌ی بدون بیت اجرا برای کاربر غیر root باز نمی‌شود، پس Prometheus روی `/etc/prometheus/rules` و Grafana روی `/etc/grafana/dashboards` خطای `permission denied` دادند. ClickHouse سالم ماند چون پوشه‌ی `config.d` از قبل در ایمیج بود؛ `--chmod` فقط همان‌جا باقی مانده است. درس اصلی این بود که درستی مجوزها باید **هنگام build و با کاربر واقعی سرویس** اثبات شود، نه با استدلال. یک تست هم بررسی می‌کند که هر stage (جز ClickHouse) از `--chmod` استفاده نکند و پس از بازگشت به کاربر سرویس یک گام بررسی داشته باشد.
-- پیش‌تر کل پوشه‌ی `rules/` mount می‌شد و `tsetmc_test.yml` (سناریوهای `promtool`، نه قاعده) هم با الگوی `rules/*.yml` خوانده می‌شد. اکنون فقط `tsetmc.yml` در ایمیج است.
-- داشبوردهای Grafana از `/var/lib/grafana` به `/etc/grafana/dashboards` رفتند؛ `/var/lib/grafana` یک volume است و محتوای نخستین build را برای همیشه نگه می‌داشت.
+- **The first attempt with `COPY --chmod=0444` failed.** BuildKit applies that permission to the directories it creates too. A directory without the execute bit can't be opened by a non-root user, so Prometheus failed on `/etc/prometheus/rules` and Grafana on `/etc/grafana/dashboards` with `permission denied`. ClickHouse was unaffected because its `config.d` directory already existed in the base image; `--chmod` was kept there only. The main lesson was that permission correctness must be **proven at build time, as the actual service user**, not argued about. A test also checks that every stage (except ClickHouse) avoids `--chmod` and has a verification step after switching back to the service user.
+- Previously the whole `rules/` directory was mounted, and `tsetmc_test.yml` (`promtool` test scenarios, not a rule) was also picked up by the `rules/*.yml` glob. Now only `tsetmc.yml` is in the image.
+- Grafana dashboards moved from `/var/lib/grafana` to `/etc/grafana/dashboards`; `/var/lib/grafana` is a volume and kept the content of the first build forever.

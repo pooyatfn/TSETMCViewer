@@ -1,62 +1,62 @@
-# ADR 0010 — در دسترس بودن: رهبری collector و چند worker برای API
+# ADR 0010 — High Availability: Collector Leadership and Multiple API Workers
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده؛ جایگزین بخش «یک نمونه» در ADR 0004</span><span>تاریخ: پس از روز ۷</span></div>
+<div class="adr-meta"><span>Status: Accepted; supersedes the "single instance" section in ADR 0004</span><span>Date: After day 7</span></div>
 
-!!! abstract "خلاصه"
-    چند نمونه‌ی collector اجرا می‌شوند و از طریق یک **lease در Redis** یکی را رهبر انتخاب می‌کنند. فقط رهبر TSETMC را صدا می‌زند و اگر از کار بیفتد، نمونه‌ی دیگر حدود یک دقیقه بعد جای آن را می‌گیرد (با توقف تمیز، در چند ثانیه). API با چند پروسه (worker) اجرا می‌شود و قفل Redis محاسبه‌ی هر کلید کش را بین همه‌ی پروسه‌ها یکی می‌کند. طراحی **در دسترس بودن را بر یکتایی ترجیح می‌دهد**، چون کار تکراری در این سیستم بی‌خطر است و از دست رفتن داده نه.
+!!! abstract "Summary"
+    Several collector instances run and elect a leader via a **lease in Redis**. Only the leader calls TSETMC, and if it dies, another instance takes over roughly a minute later (with a clean shutdown, in a few seconds). The API runs with several processes (workers), and a Redis lock makes the computation of each cache key single-flight across all of them. The design **favors availability over uniqueness**, because duplicate work is harmless in this system, but lost data is not.
 
-## زمینه
+## Context
 
-- داده‌ی درون‌روز قابل بازیابی نیست ([ADR 0003](0003-raw-first-ingestion.md)). اگر تنها collector وسط جلسه بمیرد، تا restart داده از دست می‌رود.
-- اجرای دو collector بدون هماهنگی، بار روی TSETMC را دو برابر و احتمال مسدود شدن را بیشتر می‌کند ([ADR 0004](0004-scheduling.md)).
-- یک پروسه‌ی API از یک هسته استفاده می‌کند. single-flight روز ۶ فقط درون یک پروسه کار می‌کرد ([ADR 0006](0006-caching.md#بازبینی-روز-۶-دو-اصلاح-پس-از-آزمون-بار)).
+- Intraday data is unrecoverable ([ADR 0003](0003-raw-first-ingestion.md)). If the one collector dies mid-session, data is lost until restart.
+- Running two uncoordinated collectors doubles the load on TSETMC and increases the risk of being blocked ([ADR 0004](0004-scheduling.md)).
+- A single API process uses one core. Day 6's single-flight only worked within one process ([ADR 0006](0006-caching.md#day-6-review-two-fixes-after-the-load-test)).
 
-**ویژگی کلیدی دامنه:** نوشتن تکراری بی‌خطر است. کلید هر ردیف `(ins_code, ts)` است و `ReplacingMergeTree` نسخه‌ی تکراری را حذف می‌کند. پس «دو رهبر برای چند ثانیه» فقط هزینه دارد، اما «هیچ رهبری» داده را از بین می‌برد.
+**Key domain property:** duplicate writes are harmless. Each row's key is `(ins_code, ts)`, and `ReplacingMergeTree` drops the duplicate. So "two leaders for a few seconds" only costs something, while "no leader at all" loses data.
 
-## تصمیم
+## Decision
 
-### رهبری collector
+### Collector Leadership {#collector-leadership}
 
 ```text
-هر ۱۵ ثانیه:  اگر lease خالی است یا مال من است → بگیر یا تمدید کن (۶۰ ثانیه)   ← یک اسکریپت Lua اتمیک
-رهبر:        چرخه‌ها را اجرا کن
-آماده‌به‌کار:  هر ۱۵ ثانیه دوباره تلاش کن
-توقف تمیز:   lease را آزاد کن → نمونه‌ی دیگر در تلاش بعدی رهبر می‌شود
+Every 15 seconds:  if the lease is empty or mine → acquire or renew it (60s)   ← one atomic Lua script
+Leader:            run the cycles
+Standby:           retry every 15 seconds
+Clean shutdown:    release the lease → the other instance becomes leader on its next attempt
 ```
 
-| تصمیم | دلیل |
+| Decision | Reason |
 |---|---|
-| lease با TTL، نه قفل دائمی | رهبری که بدون آزاد کردن بمیرد (kill -9، قطع برق) قفل را برای همیشه نگه نمی‌دارد |
-| «بگیر یا تمدید کن» در یک اسکریپت Lua | نمونه‌ای که lease‌اش منقضی شده نمی‌تواند lease نمونه‌ی دیگری را تمدید کند |
-| تمدید در یک task جدا از حلقه | حلقه ممکن است ۳۰ دقیقه بخوابد (خارج از ساعات بازار)؛ lease نباید در این مدت منقضی شود |
-| **بدون Redis یا با خطای Redis، هر نمونه رهبر است** | در دسترس بودن بر یکتایی: داده‌ی تکراری بی‌خطر است، داده‌ی جاافتاده نه. هشدار `TsetmcSplitBrain` این وضع را گزارش می‌کند |
-| bootstrap فقط توسط رهبر | راه‌اندازی خارج از ساعات بازار ([ADR 0004](0004-scheduling.md#بازبینی-روز-۵-راهاندازی-خارج-از-ساعات-بازار)) دو بار اجرا نمی‌شود |
+| A lease with a TTL, not a permanent lock | A leader that dies without releasing (kill -9, power loss) doesn't hold the lock forever |
+| "Acquire or renew" in a single Lua script | An instance whose lease has expired can't renew another instance's lease |
+| Renewal in a task separate from the loop | The loop may sleep for 30 minutes (outside market hours); the lease must not expire during that time |
+| **With no Redis, or on a Redis error, every instance is leader** | Availability over uniqueness: duplicate data is harmless, missing data is not. The `TsetmcSplitBrain` alert reports this state |
+| Bootstrap only by the leader | Startup outside market hours ([ADR 0004](0004-scheduling.md#day-5-review-startup-outside-market-hours)) doesn't run twice |
 
-در compose مقدار پیش‌فرض `COLLECTOR_REPLICAS=2` است. هر نمونه heartbeat خودش را دارد (`standby` یا `collecting`) و Prometheus همه را از طریق DNS پیدا می‌کند.
+In compose, the default is `COLLECTOR_REPLICAS=2`. Each instance has its own heartbeat (`standby` or `collecting`), and Prometheus discovers all of them via DNS.
 
-### چند worker برای API
+### Multiple API Workers
 
-- `api --workers N` (در compose پیش‌فرض ۲). uvicorn پروسه‌ها را می‌سازد و هر پروسه اپ خودش را.
-- **single-flight دو لایه:** اول یک future درون پروسه، بعد یک lease کوتاه در Redis (`lock:{کلید}`، ۱۰ ثانیه). پروسه‌ای که قفل را نگرفته، کش را هر ۵۰ میلی‌ثانیه نگاه می‌کند. اگر صاحب قفل تا پایان TTL جواب ننوشت (مثلاً مُرد)، خودش محاسبه می‌کند. قفل ممکن است پاسخ را کمی دیر کند، ولی هیچ‌وقت آن را از بین نمی‌برد.
-- **معیارها:** با چند پروسه، prometheus_client در حالت multiprocess کار می‌کند (پوشه‌ی مشترک، `/metrics` جمع همه). پوشه در هر شروع پاک می‌شود.
+- `api --workers N` (default 2 in compose). uvicorn creates the processes, and each process its own app.
+- **Two-layer single-flight:** first an in-process future, then a short lease in Redis (`lock:{key}`, 10 seconds). A process that didn't get the lock polls the cache every 50ms. If the lock owner hasn't written a response by the end of the TTL (e.g. it died), the waiting process computes it itself. The lock may delay the response slightly, but it never loses it.
+- **Metrics:** with multiple processes, `prometheus_client` runs in multiprocess mode (a shared directory, `/metrics` aggregates all of them). The directory is cleared on every startup.
 
-## گزینه‌های ردشده
+## Rejected Options
 
-| گزینه | چرا نه |
+| Option | Why not |
 |---|---|
-| **leader election با etcd، Consul یا Kubernetes** | یک سرویس توزیع‌شده‌ی دیگر برای یک مسئله‌ی کوچک. Redis از قبل در stack هست |
-| **قفل Redlock روی چند Redis** | Redlock برای وقتی است که درستی به یکتایی وابسته باشد. اینجا نیست، چون تکرار بی‌خطر است |
-| **تقسیم صندوق‌ها بین collectorها (sharding)** | TSETMC دیده‌بان کل بازار را در یک پاسخ می‌دهد. تقسیم کار درخواست‌ها را کمتر نمی‌کند و فقط بیشتر می‌کند |
-| **گرفتن هم‌زمان توسط هر دو collector و حذف تکراری‌ها** | بار دو برابر روی TSETMC، و احتمال مسدود شدن بیشتر |
+| **Leader election with etcd, Consul, or Kubernetes** | Another distributed service for a small problem. Redis is already in the stack |
+| **Redlock across multiple Redis instances** | Redlock is for when correctness depends on uniqueness. It doesn't here, since duplication is harmless |
+| **Sharding funds across collectors** | TSETMC's market watch returns the whole market in one response. Splitting the work doesn't reduce requests, it only increases them |
+| **Both collectors fetching simultaneously and deduplicating** | Doubles the load on TSETMC and increases the risk of being blocked |
 
-## پیامدها
+## Consequences
 
-- ➕ مرگ ناگهانی collector رهبر حدود یک دقیقه داده را از دست می‌دهد (TTL ۶۰ ثانیه، به‌علاوه‌ی حداکثر ۱۵ ثانیه تا تلاش بعدی آماده‌به‌کار). در `docker stop`، lease همان لحظه آزاد می‌شود و آماده‌به‌کار در تلاش بعدی (حداکثر ۱۵ ثانیه) رهبر می‌شود. در تمرین واقعی این جابه‌جایی ۲ ثانیه طول کشید ([پایش و هشدار](../11-monitoring.md#تمرین-قطعی-روی-سیستم-واقعی)).
-- ➕ API از همه‌ی هسته‌ها استفاده می‌کند و بار ClickHouse هنوز مستقل از تعداد کاربران است.
-- ➖ Redis برای هماهنگی لازم است. بدون آن، سیستم کار می‌کند ولی بدون یکتایی.
-- ⚠️ سرویس‌ها هنوز روی یک میزبان اجرا می‌شوند. اگر خود میزبان یا ClickHouse از کار بیفتد، کل سیستم از کار می‌افتد. HA چندمیزبانی (ClickHouse replicated، Redis Sentinel) خارج از محدوده‌ی این پروژه است ([محدودیت‌ها](../10-limitations.md)).
-- ⚠️ ساعت میزبان‌ها مهم نیست: TTL در خود Redis اندازه گرفته می‌شود.
+- ➕ A sudden death of the leader collector loses about a minute of data (60s TTL, plus up to 15s until the standby's next attempt). On `docker stop`, the lease is released immediately, and the standby becomes leader on its next attempt (up to 15s). In a real drill, this handover took 2 seconds ([Monitoring and Alerting](../11-monitoring.md#live-outage-drill)).
+- ➕ The API uses all cores, and ClickHouse load is still independent of the number of users.
+- ➖ Redis is required for coordination. Without it, the system works but without uniqueness.
+- ⚠️ Services still run on a single host. If the host itself or ClickHouse goes down, the whole system goes down. Multi-host HA (replicated ClickHouse, Redis Sentinel) is out of scope for this project ([Limitations](../10-limitations.md)).
+- ⚠️ Host clocks don't matter: the TTL is measured inside Redis itself.
 
-## بازبینی: خرابی خود ClickHouse
+## Review: ClickHouse's Own Failure
 
-این ADR خرابی ClickHouse را صریحاً خارج از محدوده گذاشته بود («اگر خود میزبان یا ClickHouse از کار بیفتد، کل سیستم از کار می‌افتد»). [ADR 0011](0011-clickhouse-replication.md) بخشی از این را می‌بندد: یک profile اختیاری، دو نسخه‌ی `ReplicatedMergeTree` با یک Keeper. مرگ **یک نسخه** دیگر یعنی از دست رفتن سرویس نیست. مرگ **خود میزبان** هنوز همه‌چیز را با هم می‌برد — هر دو نسخه و Keeper هنوز روی همان یک ماشین‌اند؛ آن بخش از این تصمیم دست‌نخورده می‌ماند.
+This ADR explicitly put a ClickHouse outage out of scope ("if the host itself or ClickHouse goes down, the whole system goes down"). [ADR 0011](0011-clickhouse-replication.md) closes part of this: an optional profile, two `ReplicatedMergeTree` replicas with one Keeper. The death of **one replica** no longer means a service outage. The death of **the host itself** still takes everything down together — both replicas and the Keeper are still on the same single machine; that part of this decision is left unchanged.

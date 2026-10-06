@@ -1,127 +1,127 @@
-# مدل داده
+# Data Model
 
-<p class="lead">جدول‌ها، کلیدها و موتورهای ClickHouse، و دلیل هر انتخاب. طرح‌واره فقط با فایل‌های مایگریشن تغییر می‌کند (<a href="../adr/0005-migrations.md">ADR 0005</a>) و این صفحه نسخه‌ی خوانای همان فایل‌هاست.</p>
+<p class="lead">The tables, keys and ClickHouse engines, and the reasoning behind each choice. The schema only ever changes through migration files (<a href="../adr/0005-migrations.md">ADR 0005</a>), and this page is a readable version of those same files.</p>
 
 <figure class="diagram">
-<img src="assets/diagrams/data-model.svg" alt="مدل داده">
-<figcaption>شکل ۱ — سه دسته جدول: مرجع (روزانه)، سری زمانی (دقیقه‌ای)، و عملیات و ممیزی. <code>run_id</code> هر ردیف تمیز را به چرخه و پاسخ خامی که آن را ساخته وصل می‌کند.</figcaption>
+<img src="assets/diagrams/data-model.svg" alt="Data model">
+<figcaption>Figure 1 — Three table categories: reference (daily), time series (per-minute), and operations and audit. Each clean row's <code>run_id</code> ties it back to the cycle and the raw response that produced it.</figcaption>
 </figure>
 
-## اصول مدل‌سازی
+## Modeling Principles
 
 <div class="grid cards two" markdown>
 
--   :material-sort-ascending: __کلید مرتب‌سازی = الگوی پرسش__
+-   :material-sort-ascending: __Sort key = query pattern__
 
     ---
 
-    در ClickHouse، `ORDER BY` نقش ایندکس اصلی را دارد. تقریباً همه‌ی پرسش‌های پنل «یک یا چند صندوق در یک بازه‌ی زمانی» است، پس کلید `fund_ticks` برابر `(ins_code, ts)` است.
+    In ClickHouse, `ORDER BY` acts as the primary index. Nearly every panel query is "one or more funds over a time range", so `fund_ticks`'s key is `(ins_code, ts)`.
 
--   :material-content-duplicate: __یکتایی بدون قفل__
-
-    ---
-
-    `ReplacingMergeTree(ingested_at)` برای هر کلید فقط آخرین نسخه را نگه می‌دارد. اجرای دوباره‌ی یک چرخه یا replay یک روز، ردیف تکراری نمی‌سازد.
-
--   :material-calendar-month: __پارتیشن ماهانه__
+-   :material-content-duplicate: __Uniqueness without locking__
 
     ---
 
-    حدود ۱۵۰ صندوق × ۲۱۰ دقیقه × ۲۲ روز ≈ ۷۰۰ هزار ردیف در ماه. پارتیشن کوچک‌تر فقط تعداد part‌ها را زیاد می‌کند. داده‌ی خام استثناست: پارتیشن روزانه دارد تا TTL کل پارتیشن را یکجا حذف کند.
+    `ReplacingMergeTree(ingested_at)` keeps only the latest version per key. Re-running a cycle, or replaying a whole day, never creates duplicate rows.
 
--   :material-timer-sand: __زمان همیشه با منطقه‌ی زمانی__
+-   :material-calendar-month: __Monthly partitioning__
 
     ---
 
-    همه‌ی ستون‌های زمانی `DateTime('Asia/Tehran')` هستند، پس `toDate(ts)` روز معاملاتی درست را می‌دهد، نه روز UTC را.
+    Roughly 150 funds × 210 minutes × 22 days ≈ 700K rows per month. Smaller partitions would only multiply the number of parts. Raw data is the exception: it partitions daily so an entire partition's TTL can be dropped at once.
+
+-   :material-timer-sand: __Time is always timezone-aware__
+
+    ---
+
+    Every timestamp column is `DateTime('Asia/Tehran')`, so `toDate(ts)` gives the correct trading day, not the UTC day.
 
 </div>
 
-## جدول‌ها
+## Tables
 
 === "fund_ticks"
 
-    **یک ردیف برای هر صندوق در هر دقیقه.** قلب سیستم است و همه‌ی تحلیل‌ها از آن ساخته می‌شوند.
+    **One row per fund per minute.** This is the heart of the system, and every analysis is built from it.
 
-    | گروه | ستون‌ها | منبع |
+    | Group | Columns | Source |
     |---|---|---|
-    | کلید | `ins_code`، `ts` (دقیقه‌ی گردشده) | — |
-    | قیمت | `last_price`، `close_price`، `open_price`، `high_price`، `low_price`، `prev_close` | دیده‌بان |
-    | معاملات | `volume`، `value`، `trade_count` | دیده‌بان |
-    | تابلوی فرعی | `block_volume`، `block_value` | جمع تابلوهای `…0002`/`…0004` ([ADR 0007](adr/0007-fund-identity.md)) |
-    | NAV | `nav_redemption`، `nav_subscription`، `nav_at` | ETF |
-    | سفارش‌ها | `bid_price`، `bid_volume`، `ask_price`، `ask_volume` (سطح اول) | دیده‌بان |
-    | حقیقی/حقوقی | حجم، ارزش و تعداد خرید و فروش برای هر دو گروه | ClientTypeAll |
-    | کیفیت | `quality_flags` (bitmask)، `run_id`، `ingested_at` | [اعتبارسنجی](04-data-quality.md) |
+    | Key | `ins_code`, `ts` (rounded minute) | — |
+    | Price | `last_price`, `close_price`, `open_price`, `high_price`, `low_price`, `prev_close` | Market watch |
+    | Trading | `volume`, `value`, `trade_count` | Market watch |
+    | Secondary board | `block_volume`, `block_value` | Sum of boards `…0002`/`…0004` ([ADR 0007](adr/0007-fund-identity.md)) |
+    | NAV | `nav_redemption`, `nav_subscription`, `nav_at` | ETF |
+    | Order book | `bid_price`, `bid_volume`, `ask_price`, `ask_volume` (level 1) | Market watch |
+    | Individual/Institutional | Buy/sell volume, value and count for both groups | ClientTypeAll |
+    | Quality | `quality_flags` (bitmask), `run_id`, `ingested_at` | [Validation](04-data-quality.md) |
 
-    همه‌ی قیمت‌ها و ارزش‌ها **ریال و عدد صحیح** (`UInt64`) هستند. خطای ممیز شناور در جمع ارزش معاملات قابل قبول نیست.
+    All prices and values are **Rials, integer** (`UInt64`). Floating-point error in summed trade values is not acceptable.
 
 === "funds / fund_daily"
 
-    | جدول | کلید | محتوا | به‌روزرسانی |
+    | Table | Key | Content | Updated |
     |---|---|---|---|
-    | `funds` | `ins_code` | نماد، نام، ISIN، نوع، بازار، تابلو، `is_active` | هر روز پیش از بازگشایی |
-    | `fund_daily` | `(ins_code, trade_date)` | تعداد واحد صادرشده، خالص دارایی | هر روز |
+    | `funds` | `ins_code` | Symbol, name, ISIN, type, market, board, `is_active` | Daily, before market open |
+    | `fund_daily` | `(ins_code, trade_date)` | Units outstanding, net asset value | Daily |
 
-    صندوقی که از بازار حذف شود **پاک نمی‌شود**؛ یک نسخه‌ی جدید با `is_active = 0` می‌گیرد تا تاریخچه‌اش در نمودارها باقی بماند.
+    A fund that is delisted is **not deleted**; it gets a new version with `is_active = 0` so its history stays intact for charts.
 
 === "market_ticks"
 
-    شاخص کل، شاخص هم‌وزن، ارزش بازار و وضعیت بازار در هر دقیقه. معیار مقایسه‌ی بازده صندوق‌ها با کل بازار است.
+    Total index, equal-weight index, market value and market status for every minute. The benchmark for comparing fund returns against the overall market.
 
-=== "روزانه"
+=== "Daily"
 
-    | جدول | موتور | کلید | محتوا |
+    | Table | Engine | Key | Content |
     |---|---|---|---|
-    | `fund_history_daily` | `ReplacingMergeTree(updated_at)`، پارتیشن سالانه | `(ins_code, trade_date)` | قیمت‌های روز و **ارزش رسمی** حقیقی/حقوقی؛ backfill اولیه‌ی ۴۰۰ روزه و به‌روزرسانی ۳۰ دقیقه پس از بسته شدن بازار |
-    | `fund_eod` | `AggregatingMergeTree` و MV `fund_eod_mv` | `(ins_code, trade_date)` | آخرین وضعیت هر روز از داده‌ی زنده: پایانی، ارزش، NAV، ورود پول |
+    | `fund_history_daily` | `ReplacingMergeTree(updated_at)`, yearly partitioning | `(ins_code, trade_date)` | Daily prices and **official** individual/institutional values; initial 400-day backfill and updated 30 minutes after market close |
+    | `fund_eod` | `AggregatingMergeTree` with MV `fund_eod_mv` | `(ins_code, trade_date)` | Each day's final state from live data: closing price, value, NAV, money inflow |
 
-    `fund_eod` فقط از `argMax(…, (ts, ingested_at))` ساخته شده است. آخرین مقدار روز مستقل از تعداد تکرار ردیف‌هاست، پس replay و forward-fill آن را خراب نمی‌کنند. جمع (`sum`) این ویژگی را ندارد و به همین دلیل در MV استفاده نشده است.
+    `fund_eod` is built entirely from `argMax(…, (ts, ingested_at))`. The last value of the day is independent of how many times a row was repeated, so replay and forward-fill don't corrupt it. `sum` lacks this property, which is why it isn't used in the MV.
 
-=== "عملیاتی"
+=== "Operational"
 
-    | جدول | نقش | نگهداری |
+    | Table | Role | Retention |
     |---|---|---|
-    | `raw_snapshots` | پاسخ خام هر درخواست | ۳۰ روز |
-    | `collection_runs` | وضعیت هر چرخه: صندوق‌های مورد انتظار در برابر دریافت‌شده | دائمی |
-    | `data_quality_log` | هر یافته‌ی اعتبارسنجی و اقدام اصلاحی | ۱۸۰ روز |
-    | `schema_migrations` | نسخه و checksum مایگریشن‌ها | دائمی |
+    | `raw_snapshots` | Raw response for every request | 30 days |
+    | `collection_runs` | Status of each cycle: expected funds vs. received | Permanent |
+    | `data_quality_log` | Every validation finding and corrective action | 180 days |
+    | `schema_migrations` | Migration version and checksum | Permanent |
 
-## پرچم‌های کیفیت
+## Quality Flags
 
-هر ردیف `fund_ticks` یک عدد `quality_flags` دارد که هر بیت آن یک وضعیت است. با این روش جدول باریک می‌ماند و فیلتر کردن ارزان است:
+Every `fund_ticks` row has a `quality_flags` integer where each bit is a status. This keeps the table narrow and filtering cheap:
 
 ```sql
--- فقط تیک‌هایی که NAV دارند
+-- Only ticks that have a NAV
 SELECT * FROM fund_ticks WHERE bitAnd(quality_flags, 2) = 0
 ```
 
-| بیت | مقدار | پرچم | معنا | از |
+| Bit | Value | Flag | Meaning | Since |
 |:-:|--:|---|---|---|
-| 1 | 2 | `NAV_MISSING` | NAV دریافت نشد | روز ۲ |
-| 2 | 4 | `NAV_STALE` | زمان محاسبه‌ی NAV از آستانه قدیمی‌تر است | روز ۳ |
-| 3 | 8 | `CLIENT_TYPE_MISSING` | صندوق در داده‌ی حقیقی/حقوقی نبود | روز ۲ |
-| 4 | 16 | `FLOW_VALUE_ESTIMATED` | ارزش ریالی حقیقی/حقوقی تخمینی است (حجم × میانگین قیمت) | روز ۲ |
-| 5 | 32 | `NO_TRADES` | امروز هنوز معامله‌ای نشده | روز ۲ |
-| 6 | 64 | `PRICE_OUT_OF_RANGE` | قیمت خارج از دامنه‌ی مجاز روز | روز ۳ |
-| 7 | 128 | `CUMULATIVE_DECREASE` | حجم یا ارزش تجمعی کاهش یافته | روز ۳ |
-| 8 | 256 | `FORWARD_FILLED` | ردیف از تیک قبلی پر شده | روز ۳ |
-| 9 | 512 | `STALE_QUOTE` | کل فید دیده‌بان چند چرخه تغییر نکرده | روز ۳ |
-| 10 | 1024 | `CLIENT_VOLUME_MISMATCH` | جمع حقیقی و حقوقی با حجم کل نمی‌خواند | روز ۳ |
-| 11 | 2048 | `NAV_CARRIED` | NAV از تیک قبلی ادامه یافته | روز ۳ |
-| 12 | 4096 | `NAV_JUMP` | تغییر NAV بیش از آستانه | روز ۳ |
-| 13 | 8192 | `RANGE_REPAIRED` | بیشترین/کمترین بازمحاسبه شده | روز ۳ |
+| 1 | 2 | `NAV_MISSING` | NAV was not received | Day 2 |
+| 2 | 4 | `NAV_STALE` | NAV calculation time is older than the threshold | Day 3 |
+| 3 | 8 | `CLIENT_TYPE_MISSING` | Fund was absent from individual/institutional data | Day 2 |
+| 4 | 16 | `FLOW_VALUE_ESTIMATED` | Individual/institutional Rial value is estimated (volume × average price) | Day 2 |
+| 5 | 32 | `NO_TRADES` | No trades yet today | Day 2 |
+| 6 | 64 | `PRICE_OUT_OF_RANGE` | Price outside the day's allowed range | Day 3 |
+| 7 | 128 | `CUMULATIVE_DECREASE` | Cumulative volume or value decreased | Day 3 |
+| 8 | 256 | `FORWARD_FILLED` | Row was filled from the previous tick | Day 3 |
+| 9 | 512 | `STALE_QUOTE` | The entire market-watch feed hasn't changed for several cycles | Day 3 |
+| 10 | 1024 | `CLIENT_VOLUME_MISMATCH` | Individual + institutional sum doesn't match total volume | Day 3 |
+| 11 | 2048 | `NAV_CARRIED` | NAV carried over from the previous tick | Day 3 |
+| 12 | 4096 | `NAV_JUMP` | NAV changed by more than the threshold | Day 3 |
+| 13 | 8192 | `RANGE_REPAIRED` | High/low was recomputed | Day 3 |
 
-!!! warning "قرارداد ذخیره‌سازی"
-    شماره‌ی بیت‌ها بخشی از قالب داده‌ی ذخیره‌شده است. بیت جدید فقط به انتها اضافه می‌شود و هیچ بیتی تغییر شماره نمی‌دهد (`domain/quality.py`).
+!!! warning "Storage contract"
+    Bit numbers are part of the stored data format. New bits are only appended; no bit ever changes its number (`domain/quality.py`).
 
-## تاریخچه‌ی مایگریشن‌ها
+## Migration History
 
-| فایل | تغییر | دلیل |
+| File | Change | Reason |
 |---|---|---|
-| `0001_init.sql` | جدول‌های پایه | روز ۱ |
-| `0002_pipeline_columns.sql` | `nav_at`، ارزش و تعداد حقوقی، `block_*`، `funds.market/board`، جدول `market_ticks` | نتیجه‌ی نگاشت پاسخ‌های واقعی TSETMC |
-| `0003_quality_counters.sql` | `collection_runs.issues/filled/repaired` | پایش کیفیت در سطح چرخه |
-| `0004_history_and_eod.sql` | `fund_history_daily`، `fund_eod` و `fund_eod_mv` | بازده دوره‌ای، ورود پول رسمی، NAV پایان روز |
+| `0001_init.sql` | Base tables | Day 1 |
+| `0002_pipeline_columns.sql` | `nav_at`, institutional value and count, `block_*`, `funds.market/board`, `market_ticks` table | Result of mapping real TSETMC responses |
+| `0003_quality_counters.sql` | `collection_runs.issues/filled/repaired` | Cycle-level quality monitoring |
+| `0004_history_and_eod.sql` | `fund_history_daily`, `fund_eod` and `fund_eod_mv` | Periodic returns, official money inflow, end-of-day NAV |
 
-همه‌ی دستورهای `0002` به شکل `ADD COLUMN IF NOT EXISTS` هستند، پس اجرای دوباره‌ی آن روی دیتابیسی که نیمه‌کاره مانده بی‌خطر است.
+All `0002` statements use `ADD COLUMN IF NOT EXISTS`, so re-running it on a database left in a half-applied state is safe.

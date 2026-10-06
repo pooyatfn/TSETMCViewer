@@ -1,42 +1,42 @@
-# ADR 0007 — هویت صندوق: تابلوی اصلی و تابلوهای فرعی
+# ADR 0007 — Fund Identity: Main Board and Sub-Boards
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده</span><span>تاریخ: روز ۲</span></div>
+<div class="adr-meta"><span>Status: Accepted</span><span>Date: Day 2</span></div>
 
-!!! abstract "خلاصه"
-    یک صندوق در TSETMC می‌تواند چند نماد داشته باشد: تابلوی اصلی (مثل «اطلس»)، تابلوهای فرعی (مثل «سهامدار2» و «یاقوت4») و ده‌ها اختیار معامله روی خودش. **کلید هر صندوق نماد تابلوی اصلی است.** گردش تابلوهای فرعی در همان صندوق جمع می‌شود و اختیار معامله‌ها کنار گذاشته می‌شوند.
+!!! abstract "Summary"
+    A fund in TSETMC can have multiple symbols: the main board (e.g. "Atlas"), sub-boards (e.g. "Sahamdar2" and "Yaghut4"), and dozens of options written on it. **The key for each fund is the main-board symbol.** Sub-board turnover is aggregated into the same fund, and options are discarded.
 
-## زمینه
+## Context
 
-در داده‌ی واقعی دیده‌بان (۲ مهر ۱۴۰۵):
+In the real watchlist data (2 Mehr 1405):
 
-| گروه | تعداد | نمونه | ISIN |
+| Group | Count | Example | ISIN |
 |---|--:|---|---|
-| تابلوی اصلی صندوق | ۳۳۲ | اطلس | `IRT3SATF0001` |
-| تابلوی فرعی صندوق | ۱۰۰ | سهامدار2، یاقوت4، کارا4 | `IRT3SAHF0002`، `IRT1YGHT0004` |
-| اختیار معامله روی صندوق | ۵۶۱ | ضاطلس090802، طتوان918 | `IROASATF8461`، `IROB…` |
+| Fund main board | 332 | Atlas | `IRT3SATF0001` |
+| Fund sub-board | 100 | Sahamdar2, Yaghut4, Kara4 | `IRT3SAHF0002`, `IRT1YGHT0004` |
+| Options on a fund | 561 | ZATLAS090802, TAVAN918 | `IROASATF8461`, `IROB…` |
 
-همه‌ی این نمادها در **گروه ۶۸** هستند. اگر گروه ۶۸ را صندوق فرض کنیم، ۶۶۱ نماد اشتباه وارد تحلیل می‌شود. اگر فقط تابلوی اصلی را بگیریم و فرعی‌ها را نادیده بگیریم، بخشی از گردش واقعی صندوق از دست می‌رود. از ۱۰۰ تابلوی فرعی، ۱۰۰ نماد در همان روز معامله داشتند.
+All of these symbols are in **group 68**. If we assume group 68 is "funds", 661 symbols enter the analysis incorrectly. If we take only the main board and ignore sub-boards, part of the fund's real turnover is lost. Of the 100 sub-boards, 100 symbols traded that same day.
 
-## تصمیم
+## Decision
 
-1. **واحد صندوق** = گروه `68` **و** ISIN با پیشوند `IRT`. پیشوند `IRO` (اختیار معامله) حذف می‌شود.
-2. **هویت صندوق** = نماد تابلوی اصلی (ISIN با پسوند `0001`). NAV، نوع صندوق و تعداد واحد فقط برای این نماد خوانده می‌شود.
-3. **ریشه‌ی ISIN** (بدون ۴ کاراکتر آخر، مثلاً `IRT3SATF`) تابلوهای فرعی را به صندوق وصل می‌کند. حجم و ارزش آن‌ها در `block_volume` و `block_value` همان تیک جمع می‌شود و **با حجم تابلوی اصلی جمع نمی‌شود**، چون قیمت‌گذاری تابلوی فرعی ممکن است متفاوت باشد.
-4. **نوع صندوق** از `faraDesc` نماد اصلی خوانده می‌شود. اگر فقط «سهامی» باشد، نام صندوق برای تشخیص «شاخصی» و «بخشی» بررسی می‌شود. پیشوند `IRTK` یعنی صندوق کالایی.
+1. **Fund unit** = group `68` **and** an ISIN with the `IRT` prefix. The `IRO` (option) prefix is excluded.
+2. **Fund identity** = the main-board symbol (ISIN with the `0001` suffix). NAV, fund type, and unit count are read only for this symbol.
+3. **ISIN root** (without the last 4 characters, e.g. `IRT3SATF`) links sub-boards to the fund. Their volume and value are aggregated into `block_volume` and `block_value` for that same tick, and **not added to the main board's volume**, since sub-board pricing may differ.
+4. **Fund type** is read from the main symbol's `faraDesc`. If it's only "Equity" ("سهامی"), the fund's name is checked to distinguish "Index" and "Sector" types. The `IRTK` prefix means a commodity fund.
 
-## گزینه‌های ردشده
+## Rejected Options
 
-- **فهرست دستی صندوق‌ها:** با پذیره‌نویسی صندوق جدید بی‌صدا ناقص می‌شود.
-- **تشخیص از روی نام نماد** (مثلاً عدد در انتهای نماد): نام‌ها قاعده‌ی ثابتی ندارند (مثل «پتروصبا2» در برابر «دارا یکم»). ISIN استاندارد است.
-- **استفاده از فیپیران برای فهرست:** دامنه در دسترس نبود ([منابع داده](../02-data-sources.md)).
+- **A manual fund list:** silently goes stale whenever a new fund is listed.
+- **Detection from the symbol name** (e.g. a trailing number): names follow no fixed rule (e.g. "Petrosaba2" vs. "Dara1"). ISIN is standardized.
+- **Using FIPIRAN for the list:** the domain wasn't accessible ([Data Sources](../02-data-sources.md)).
 
-## پیامدها
+## Consequences
 
-- ➕ فهرست صندوق‌ها هر روز خودکار و بدون نگهداری دستی به‌روز می‌شود.
-- ➕ تحلیل نقدشوندگی، معاملات بلوکی را هم می‌بیند.
-- ➖ اگر TSETMC الگوی ISIN را عوض کند، شناسایی می‌شکند. این خطر را تست‌های داده‌ی واقعی و شاخص `expected_funds` در `collection_runs` زود نشان می‌دهند (کاهش ناگهانی تعداد صندوق‌ها).
-- ⚠️ صندوق «دارا یکم» شاخصی است، اما `faraDesc` آن فقط «سهامی» است و نامش هم نشانه‌ای ندارد. این صندوق «سهامی» طبقه‌بندی می‌شود. برای موارد این‌چنینی، یک جدول override کوچک در گام‌های بعدی در نظر گرفته شده است.
+- ➕ The fund list updates automatically every day with no manual maintenance.
+- ➕ Liquidity analysis also sees block trades.
+- ➖ If TSETMC changes its ISIN pattern, identification breaks. Real-data tests and the `expected_funds` metric in `collection_runs` surface this risk early (a sudden drop in fund count).
+- ⚠️ The "Dara1" fund is an index fund, but its `faraDesc` is only "Equity", and its name gives no hint either. This fund is classified as "Equity". For cases like this, a small override table is planned for later steps.
 
-## بازبینی روز ۴: وقتی `faraDesc` خالی است
+## Review — Day 4: When `faraDesc` Is Empty
 
-ضبط کامل بازار نشان داد ۸۱ صندوق از ۳۳۳ صندوق `faraDesc` ندارند، از جمله ۲۱ صندوق سهامی و بخشی. بند ۴ این تصمیم تکمیل شد: اگر توضیح رسمی خالی باشد، **حرف نوع در انتهای نام** (`-س`، `-ب`، `-د`، `-م`) و سپس کلیدواژه‌های نام استفاده می‌شوند. این قاعده روی ۲۵۲ صندوقی که هر دو را دارند با ۹۹٫۲٪ توافق سنجیده شد و به‌صورت تست روی کل فهرست واقعی نگه داشته می‌شود ([منابع داده](../02-data-sources.md#پوشش-طبقهبندی-روی-کل-بازار)). نتیجه: خانواده‌ی سهامی از ۱۳۸ به **۱۵۹** صندوق رسید.
+A full market capture showed that 81 of 333 funds have no `faraDesc`, including 21 equity and sector funds. Clause 4 of this decision was completed: if the official description is empty, the **type letter at the end of the name** (`-س`, `-ب`, `-د`, `-م`) is used, followed by keywords in the name. This rule was measured against the 252 funds that have both, with 99.2% agreement, and is kept as a test against the full real list ([Data Sources](../02-data-sources.md#classification-coverage-across-the-whole-market)). Result: the equity family grew from 138 to **159** funds.

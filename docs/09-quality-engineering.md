@@ -1,116 +1,116 @@
-# آزمون، CI و مقاوم‌سازی
+# Testing, CI, and Resilience
 
-<p class="lead">این صفحه می‌گوید از کجا می‌دانیم سرویس درست کار می‌کند و وقتی چیزی خراب شود چه رفتاری دارد: چه چیزی تست می‌شود و چرا، CI روی هر تغییر چه چیزهایی را بررسی می‌کند، سرویس در برابر قطعی TSETMC، ClickHouse و Redis چه می‌کند، و آزمون بار درباره‌ی کش چه نشان داد.</p>
+<p class="lead">This page explains how we know the service works correctly and how it behaves when something breaks: what is tested and why, what CI checks on every change, how the service behaves against TSETMC, ClickHouse, and Redis outages, and what the load test showed about caching.</p>
 
 <div class="kpis">
-  <div class="kpi"><b>۲۳۶</b><span>تست خودکار (۲۱۲ پایتون، ۱۶ پنل، ۸ سناریوی هشدار)</span></div>
-  <div class="kpi"><b>۸۹٪</b><span>پوشش شاخه‌ای کد پایتون (حداقل مجاز ۸۵٪)</span></div>
-  <div class="kpi"><b>۴</b><span>کار CI روی هر push و PR</span></div>
-  <div class="kpi"><b>×۷</b><span>توان عملیاتی API با کش، در آزمون بار</span></div>
+  <div class="kpi"><b>236</b><span>automated tests (212 Python, 16 panel, 8 alert scenarios)</span></div>
+  <div class="kpi"><b>89%</b><span>Python branch coverage (85% minimum required)</span></div>
+  <div class="kpi"><b>4</b><span>CI jobs on every push and PR</span></div>
+  <div class="kpi"><b>×7</b><span>API throughput with caching, in the load test</span></div>
 </div>
 
-## راهبرد آزمون
+## Testing Strategy
 
-سه اصل، که هر کدام از یک مشکل واقعی همین پروژه آمده است:
+Three principles, each born from a real problem in this project:
 
 <div class="grid cards two" markdown>
 
--   :material-file-download-outline: __پاسخ واقعی، نه داده‌ی ساختگی__
+-   :material-file-download-outline: __Real responses, not fabricated data__
 
     ---
 
-    تست‌ها با **پاسخ‌های ضبط‌شده‌ی واقعی TSETMC** (`tests/fixtures/sample`) اجرا می‌شوند، که `respx` آن‌ها را روی همان آدرس‌های واقعی سرو می‌کند. شکل واقعی پاسخ‌ها (فیلدهای خالی، تابلوهای فرعی، صندوق‌های بدون NAV) همان چیزی است که pipeline باید با آن کنار بیاید.
+    Tests run against **real recorded TSETMC responses** (`tests/fixtures/sample`), which `respx` serves at the same real URLs. The real shape of these responses (empty fields, secondary boards, funds with no NAV) is exactly what the pipeline has to handle.
 
--   :material-database-check-outline: __ClickHouse واقعی، نه mock__
-
-    ---
-
-    ۱۲ تست یکپارچگی روی یک ClickHouse واقعی و در یک دیتابیس یک‌بارمصرف اجرا می‌شوند: مایگریشن‌ها، materialized view، `FINAL`، replay و پرس‌وجوهای تحلیلی. باگ مایگریشن ۰۰۰۴ ([ADR 0005](adr/0005-migrations.md)) فقط روی دیتابیس واقعی دیده می‌شد.
-
--   :material-clock-check-outline: __زمان تزریق‌شدنی__
+-   :material-database-check-outline: __Real ClickHouse, not a mock__
 
     ---
 
-    هیچ کدی مستقیم `datetime.now()` را صدا نمی‌زند: همه از `MarketClock` می‌پرسند. تست‌ها ساعت ثابت می‌دهند: «پنجشنبه ساعت ۱۰»، «شنبه وسط جلسه»، «بعد از بسته شدن». رفتار وابسته به تقویم (bootstrap، عکس پایانی، سلامت collector) این‌طور قطعی تست می‌شود.
+    12 integration tests run against a real ClickHouse instance in a disposable database: migrations, materialized views, `FINAL`, replay, and analytical queries. The migration 0004 bug ([ADR 0005](adr/0005-migrations.md)) only showed up on a real database.
 
--   :material-bug-check-outline: __هر باگ، یک تست__
+-   :material-clock-check-outline: __Injectable time__
 
     ---
 
-    هر مشکلی که در اجرای واقعی پیدا شد اول با یک تست بازتولید شد و بعد اصلاح شد: تبدیل تغییر شاخص به درصد، مایگریشن روی 24.8.14، خالص دارایی صفر در عکس پایانی و ازدحام درخواست‌ها روی کش (پایین‌تر).
+    No code calls `datetime.now()` directly: everything asks `MarketClock`. Tests pin the clock: "Thursday at 10", "Saturday mid-session", "after close". Calendar-dependent behavior (bootstrap, closing snapshot, collector health) is tested deterministically this way.
+
+-   :material-bug-check-outline: __Every bug, a test__
+
+    ---
+
+    Every problem found in real operation was first reproduced with a test and then fixed: converting the index change to a percentage, the migration on 24.8.14, zero net assets in the closing snapshot, and the cache stampede (below).
 
 </div>
 
-### نقشه‌ی تست‌ها
+### Test Map
 
-| لایه | فایل‌ها | چه چیزی را تضمین می‌کند |
+| Layer | Files | What it guarantees |
 |---|---|---|
-| منطق مالی و دامنه | `test_metrics`، `test_domain`، `test_clock` | حباب، خالص دارایی، جریان پول، قدرت خریدار، تقویم جلالی، ساعات بازار |
-| پارس و تبدیل | `test_tsetmc_models`، `test_transform`، `test_universe` | پاسخ واقعی به مدل تبدیل می‌شود. هویت صندوق و تابلوی اصلی درست تشخیص داده می‌شود |
-| کیفیت داده | `test_validate` (۲۰ تست) | هر ۱۰ بررسی، هر روش اصلاح، ثبت لبه‌ای رخدادها و بازیابی وضعیت پس از restart |
-| جمع‌آوری | `test_collector`، `test_bootstrap`، `test_collector_loop`، `test_history`، `test_http` | چرخه‌ی کامل، خرابی جزئی و کامل، retry، راه‌اندازی خارج از ساعات بازار، توقف تمیز، هشدار خرابی پیاپی |
-| ذخیره‌سازی | `test_migrate` و تست‌های یکپارچگی | مایگریشن‌ها idempotent هستند، با checksum قفل‌اند و روی ClickHouse واقعی و هر دو حالت نام‌گذاری tuple اجرا می‌شوند |
-| API | `test_api`، `test_api_cache`، `test_analytics_api`، `test_stream` | قرارداد پاسخ‌ها، ETag و 304، single-flight، حفظ تاریخ جلسه به‌ازای هر تیک، SSE، خطای 503 |
-| پیکربندی | `test_repo_consistency` | تگ ClickHouse در CI و compose یکی است. هر تنظیم کد در `.env.example` مستند شده است |
-| پنل | `format.test.ts`، `options.test.ts` | قالب‌بندی فارسی اعداد و علامت‌ها، و تصمیم‌های نمایشی نمودارها (اهرمی‌ها، لبه‌ها، رنگ، زمان از چپ به راست) |
+| Financial and domain logic | `test_metrics`, `test_domain`, `test_clock` | Premium/discount, net assets, money flow, buyer strength, Jalali calendar, market hours |
+| Parsing and transformation | `test_tsetmc_models`, `test_transform`, `test_universe` | Real responses convert correctly into models. Fund identity and primary board are correctly identified |
+| Data quality | `test_validate` (20 tests) | All 10 checks, every remediation method, edge-triggered event logging, and state recovery after a restart |
+| Collection | `test_collector`, `test_bootstrap`, `test_collector_loop`, `test_history`, `test_http` | Full cycle, partial and total failure, retry, startup outside market hours, clean shutdown, consecutive-failure alerting |
+| Storage | `test_migrate` and the integration tests | Migrations are idempotent, locked by checksum, and run against real ClickHouse in both tuple-naming modes |
+| API | `test_api`, `test_api_cache`, `test_analytics_api`, `test_stream` | Response contracts, ETag and 304, single-flight, per-tick session-date memoization, SSE, 503 error handling |
+| Configuration | `test_repo_consistency` | The ClickHouse tag is the same in CI and compose. Every code setting is documented in `.env.example` |
+| Panel | `format.test.ts`, `options.test.ts` | Persian formatting of numbers and signs, and chart display decisions (leveraged funds, edge cases, color, left-to-right time) |
 
-!!! tip "دو تست که از «ناسازگاری فایل‌ها» جلوگیری می‌کنند"
-    `test_repo_consistency.py` کد محصول را تست نمی‌کند، بلکه **هماهنگی فایل‌ها** را. اولین اجرای آن بلافاصله چهار تنظیم را پیدا کرد که در کد بودند ولی در `.env.example` نه. تست دوم تضمین می‌کند که CI تست‌ها را روی همان نسخه‌ی ClickHouse اجرا کند که کاربر اجرا می‌کند.
+!!! tip "Two tests that prevent "file inconsistency""
+    `test_repo_consistency.py` doesn't test the product's code, it tests **consistency between files**. The first time it ran, it immediately caught four settings that existed in code but not in `.env.example`. The second test guarantees that CI runs the tests against the same ClickHouse version the user runs.
 
 ## CI
 
 <figure class="diagram">
-<img src="assets/diagrams/ci-pipeline.svg" alt="مراحل CI: یک رویداد، سه کار موازی و یک آزمون دود">
-<figcaption>شکل ۱ — هر push و PR سه کار موازی دارد. آزمون دود فقط وقتی اجرا می‌شود که کد پایتون و پنل سالم باشند، چون ساخت ایمیج‌ها گران‌ترین مرحله است.</figcaption>
+<img src="assets/diagrams/ci-pipeline.svg" alt="CI stages: one event, three parallel jobs, and one smoke test">
+<figcaption>Figure 1 — Every push and PR has three parallel jobs. The smoke test only runs once the Python code and the panel are healthy, since building the images is the most expensive stage.</figcaption>
 </figure>
 
-آزمون دود مهم‌ترین قسمت CI است: کل سیستم را همان‌طور که کاربر اجرا می‌کند بالا می‌آورد (`docker compose up`) و از بیرون بررسی می‌کند. خطای مایگریشن روز ۵ دقیقاً از همین نوع بود: همه‌ی تست‌های واحد سبز بودند و فقط `docker compose up` آن را نشان می‌داد. collector در CI اجرا نمی‌شود، چون TSETMC از سرورهای خارج از ایران در دسترس نیست. رفتار آن با پاسخ‌های ضبط‌شده تست می‌شود.
+The smoke test is the most important part of CI: it brings up the whole system exactly as the user runs it (`docker compose up`) and checks it from the outside. The day-5 migration bug was exactly this kind: all unit tests were green, and only `docker compose up` revealed it. The collector doesn't run in CI, because TSETMC isn't reachable from servers outside Iran. Its behavior is tested with recorded responses.
 
 <div class="grid cards two" markdown>
 
--   :material-lock-check-outline: __همه چیز از lockfile__
+-   :material-lock-check-outline: __Everything from the lockfile__
 
     ---
 
-    `uv sync --frozen` و `npm ci`: CI دقیقاً همان نسخه‌هایی را نصب می‌کند که روی سیستم توسعه‌دهنده بوده است. hookهای pre-commit هم ruff، mypy و tsc را از همان lockfileها اجرا می‌کنند، پس ممکن نیست hook و CI درباره‌ی نسخه‌ی ruff اختلاف داشته باشند.
+    `uv sync --frozen` and `npm ci`: CI installs exactly the same versions that were on the developer's machine. The pre-commit hooks also run ruff, mypy, and tsc from the same lockfiles, so a hook and CI can never disagree about which ruff version to use.
 
--   :material-timer-sand: __سریع برای بازخورد__
+-   :material-timer-sand: __Fast feedback__
 
     ---
 
-    کارها موازی‌اند و کش uv و npm فعال است. اگر push جدیدی روی همان شاخه بیاید، اجرای قبلی لغو می‌شود (`concurrency`).
+    Jobs run in parallel, and the uv and npm caches are enabled. If a new push lands on the same branch, the previous run is canceled (`concurrency`).
 
 </div>
 
-## مقاوم‌سازی
+## Resilience
 
-جدول زیر رفتار سرویس را در برابر هر خرابی نشان می‌دهد. اصل کلی این است: **خرابی یک جزء نباید اجزای سالم را از کار بیندازد، و نباید بی‌صدا باشد.**
+The table below shows how the service behaves against each kind of failure. The general principle is: **a failure in one component must not take down the healthy ones, and it must never be silent.**
 
-| خرابی | رفتار | کجا دیده می‌شود |
+| Failure | Behavior | Where it's visible |
 |---|---|---|
-| TSETMC در دسترس نیست (VPN روشن، IP مسدود) | چرخه با وضعیت `failed` ثبت می‌شود و حلقه ادامه می‌دهد. بعد از ۳ چرخه‌ی ناموفق پیاپی **یک** خطا با راهنمای «VPN؟» لاگ می‌شود (نه یک خطا در هر دقیقه)، و هنگام بازگشت پیام «بازیابی شد» | لاگ collector، بخش `collector` در `/health` |
-| یک endpoint جزئی خراب است (مثلاً NAV یک صندوق) | ردیف صندوق با پرچم `NAV_MISSING` نوشته می‌شود، وضعیت چرخه `partial` | کارت کیفیت داده در پنل |
-| ClickHouse قطع است | API پاسخ **503** با `Retry-After: 10` می‌دهد، نه 500 و traceback. خطای SQL (باگ) همچنان 500 می‌ماند | پنل پیام خطا نشان می‌دهد و در تیک بعد دوباره تلاش می‌کند |
-| Redis قطع است | کش و رویدادها غیرفعال می‌شوند (fail-open). API مستقیم از ClickHouse می‌خواند | لاگ هشدار ([ADR 0006](adr/0006-caching.md)) |
-| حلقه‌ی collector گیر کرده است | فایل heartbeat موعدی را که خودش تعیین کرده بود رد می‌کند و healthcheck داکر `unhealthy` می‌شود | `docker compose ps` |
-| `docker stop` وسط یک چرخه | سیگنال SIGTERM فقط خواب بین چرخه‌ها را قطع می‌کند. چرخه‌ی جاری کامل نوشته می‌شود (مهلت ۳۰ ثانیه) و بعد برنامه خارج می‌شود | لاگ `collector stopped` |
-| راه‌اندازی بعد از بسته شدن بازار | تاریخچه تکمیل می‌شود و از آخرین جلسه یک عکس پایانی گرفته می‌شود ([ADR 0004](adr/0004-scheduling.md#بازبینی-روز-۵-راهاندازی-خارج-از-ساعات-بازار)) | پنل خالی نیست |
+| TSETMC is unreachable (VPN on, IP blocked) | The cycle is recorded with status `failed` and the loop keeps going. After 3 consecutive failed cycles, **one** error is logged with a "VPN?" hint (not one error per minute), and a "recovered" message on return | collector log, the `collector` section of `/health` |
+| One endpoint is partially broken (e.g., a fund's NAV) | The fund's row is written with the `NAV_MISSING` flag, and the cycle status is `partial` | The data-quality card in the panel |
+| ClickHouse is down | The API returns **503** with `Retry-After: 10`, not a 500 and a traceback. A SQL error (a bug) still returns 500 | The panel shows an error message and retries on the next tick |
+| Redis is down | Caching and events are disabled (fail-open). The API reads directly from ClickHouse | A warning in the log ([ADR 0006](adr/0006-caching.md)) |
+| The collector loop is stuck | The heartbeat file misses the deadline it set for itself, and the Docker healthcheck becomes `unhealthy` | `docker compose ps` |
+| `docker stop` mid-cycle | The SIGTERM signal only interrupts the sleep between cycles. The current cycle finishes writing completely (30-second grace period), and then the process exits | The `collector stopped` log |
+| Startup after market close | History is completed and a closing snapshot is taken of the last session ([ADR 0004](adr/0004-scheduling.md#day-5-review-startup-outside-market-hours)) | The panel isn't empty |
 
-### دو نوع سلامت، عمداً جدا
+### Two Kinds of Health, Deliberately Separate {#two-kinds-of-health-are-deliberately-separate}
 
 <div class="grid cards two" markdown>
 
--   :material-heart-pulse: __زنده بودن حلقه (Docker)__
+-   :material-heart-pulse: __Loop liveness (Docker)__
 
     ---
 
-    `tsetmc-viewer healthcheck` فقط می‌پرسد: «آیا حلقه به قولش عمل کرده است؟» حلقه قبل از هر خواب یا چرخه، موعد ضربان بعدی را در یک فایل می‌نویسد. قطعی TSETMC حلقه را **ناسالم** نمی‌کند، چون restart کانتینر آن را درست نمی‌کند.
+    `tsetmc-viewer healthcheck` only asks: "has the loop kept its promise?" Before every sleep or cycle, the loop writes the next heartbeat deadline to a file. A TSETMC outage does **not** make the loop unhealthy, because restarting the container wouldn't fix it.
 
--   :material-chart-timeline-variant: __تازگی داده (API)__
+-   :material-chart-timeline-variant: __Data freshness (API)__
 
     ---
 
-    `/health` وضعیت collector را در بدنه‌ی پاسخ گزارش می‌دهد: `ok`، `stale` یا `idle`، همراه با تأخیر و تعداد شکست‌های پیاپی. کد HTTP فقط به دیتابیس بستگی دارد، چون سرویس `web` منتظر سالم بودن `api` است و collector خراب نباید پنل را هم از کار بیندازد.
+    `/health` reports the collector's status in the response body: `ok`, `stale`, or `idle`, along with the lag and the number of consecutive failures. The HTTP status code depends only on the database, because the `web` service waits for `api` to be healthy, and a broken collector shouldn't take the panel down too.
 
 </div>
 
@@ -129,43 +129,43 @@ $ curl -s localhost:8000/health | jq
 }
 ```
 
-## آزمون بار
+## Load Test {#load-test}
 
-`scripts/loadtest.py` چند کاربر مجازی می‌سازد که هر کدام مثل مرورگر، شش endpoint داشبورد را پشت سر هم و پیوسته درخواست می‌کنند. نتایج روی داده‌ی واقعی (۱۵۹ صندوق و ۴۰۰ روز تاریخچه)، یک پروسه‌ی uvicorn و ۲ هسته‌ی پردازنده، **با ClickHouse و مولد بار روی همان ماشین**:
+`scripts/loadtest.py` creates several virtual users, each requesting the dashboard's six endpoints back-to-back and continuously, like a browser. Results are on real data (159 funds and 400 days of history), one uvicorn process, and 2 CPU cores, **with ClickHouse and the load generator on the same machine**:
 
 <figure class="diagram">
-<img src="assets/diagrams/load-test.svg" alt="نتیجه‌ی آزمون بار: توان عملیاتی و زمان پاسخ در سه حالت کش">
-<figcaption>شکل ۲ — با کش، توان عملیاتی ۶ تا ۷ برابر و زمان پاسخ حدود ۱۰ برابر بهتر می‌شود. در حالت ETag، مرورگر پاسخ ۳۰۴ بدون بدنه می‌گیرد.</figcaption>
+<img src="assets/diagrams/load-test.svg" alt="Load test results: throughput and response time across three caching modes">
+<figcaption>Figure 2 — With caching, throughput improves 6 to 7x and response time improves about 10x. In ETag mode, the browser gets a bodyless 304 response.</figcaption>
 </figure>
 
-| حالت | ۱ کاربر: میانه / p95 | ۲۰ کاربر: توان عملیاتی | ۲۰ کاربر: میانه / p95 |
+| Mode | 1 user: median / p95 | 20 users: throughput | 20 users: median / p95 |
 |---|---|---|---|
-| بدون کش (`REDIS_URL=`) | ۳۷ / ۶۶ ms | ۴۹ درخواست در ثانیه | ۳۷۲ / ۶۷۱ ms |
-| کش Redis | ۴٫۴ / ۹٫۵ ms | ۲۸۳ درخواست در ثانیه | ۴۴ / ۲۱۴ ms |
-| Redis و ETag | ۲٫۹ / ۴٫۶ ms | ۳۴۹ درخواست در ثانیه | ۳۴ / ۱۶۹ ms |
+| No cache (`REDIS_URL=`) | 37 / 66 ms | 49 requests/second | 372 / 671 ms |
+| Redis cache | 4.4 / 9.5 ms | 283 requests/second | 44 / 214 ms |
+| Redis and ETag | 2.9 / 4.6 ms | 349 requests/second | 34 / 169 ms |
 
-یک بار تازه شدن پنل شش درخواست است. پس یک پروسه‌ی API روی همین سخت‌افزار ضعیف، با کش، حدود **۳۵۰۰ پنل باز** را در هر دقیقه تازه می‌کند، و بار ClickHouse **مستقل از تعداد کاربران** است: در هر تیک، هر کلید فقط یک بار محاسبه می‌شود.
+One panel refresh is six requests. So a single API process on this same modest hardware, with caching, refreshes about **3500 open panels** per minute, and the load on ClickHouse is **independent of the number of users**: each key is computed only once per tick.
 
-### دو یافته‌ی آزمون بار که کد را عوض کرد
+### Two Load-Test Findings That Changed the Code
 
-??? bug "۱. ازدحام روی کش (cache stampede)"
-    در اولین اجرا با ۲۰ کاربر، ۵۶ درخواست cache miss شد، نه ۶. وقتی تیک جدیدی می‌رسد، همه‌ی پنل‌های باز هم‌زمان همان کلیدها را می‌خواهند و همه با هم به ClickHouse می‌روند. این اتفاق **هر دقیقه** تکرار می‌شد.
+??? bug "1. Cache stampede"
+    On the first run with 20 users, 56 requests were cache misses, not 6. When a new tick arrives, every open panel wants the same keys at the same instant, and they all hit ClickHouse together. This repeated **every minute**.
 
-    **اصلاح:** در `api/cache.py` محاسبه‌ی کلیدهای ازدست‌رفته *single-flight* شد: اولین درخواست محاسبه می‌کند و بقیه منتظر همان نتیجه می‌مانند (`X-Cache: shared`). اگر محاسبه خطا بدهد، همه‌ی منتظرها همان خطا را می‌گیرند و چیزی کش نمی‌شود. نتیجه: ۶ محاسبه به‌جای ۵۶. تست: `test_concurrent_misses_compute_once`.
+    **Fix:** in `api/cache.py`, computing missing keys became *single-flight*: the first request computes, and the rest wait for that same result (`X-Cache: shared`). If the computation errors, everyone waiting gets the same error, and nothing is cached. Result: 6 computations instead of 56. Test: `test_concurrent_misses_compute_once`.
 
-??? bug "۲. یک پرس‌وجوی پنهان در هر درخواست"
-    حتی پاسخ‌های کش‌شده و ۳۰۴ حدود ۱۱ تا ۱۴ میلی‌ثانیه طول می‌کشیدند. علت این بود که «آخرین جلسه» (پیش‌فرض `?date=`) **قبل از** رسیدن به کش، در هر درخواست از ClickHouse پرسیده می‌شد.
+??? bug "2. A hidden query on every request"
+    Even cached and 304 responses took about 11 to 14 milliseconds. The cause was that the "latest session" (the default for `?date=`) was being queried from ClickHouse on every request, **before** it even reached the cache.
 
-    **اصلاح:** آخرین جلسه فقط با یک تیک جدید عوض می‌شود، پس به‌ازای هر تیک (و حداکثر یک دقیقه) در حافظه نگه داشته می‌شود. شماره‌ی تیک هم فقط یک بار از Redis خوانده می‌شود. نتیجه: زمان پاسخ کش ۱۴٫۵ → ۴٫۴ ms و ۳۰۴ از ۱۱٫۴ → ۲٫۹ ms. با هر دو اصلاح، توان عملیاتی حالت کش از ۱۳۲ به ۲۸۳ درخواست در ثانیه رسید. تست: `test_session_date_is_memoised_per_tick`.
+    **Fix:** the latest session only changes with a new tick, so it's memoized in memory per tick (for at most a minute). The tick number itself is also read from Redis only once. Result: cached response time went from 14.5 → 4.4 ms, and 304 from 11.4 → 2.9 ms. With both fixes, cached-mode throughput went from 132 to 283 requests/second. Test: `test_session_date_is_memoised_per_tick`.
 
 ```bash
-# تکرار آزمون (API روی :8000، یک بار با REDIS_URL= و یک بار با Redis)
+# repeat the test (API on :8000, once with REDIS_URL= and once with Redis)
 uv run python scripts/loadtest.py --users 20 --seconds 20 --mode plain
 uv run python scripts/loadtest.py --users 20 --seconds 20 --mode etag
 ```
 
-## پاک‌سازی
+## Cleanup
 
-- کلاینت فیپیران که در روز ۱ نوشته شده بود و بعد از روز ۲ استفاده نمی‌شد حذف شد ([منابع داده](02-data-sources.md)). کدی که اجرا نمی‌شود تست هم نمی‌شود، ولی خواننده‌ی کد باید آن را بفهمد.
-- hook بررسی YAML در pre-commit روی `mkdocs.yml` شکست می‌خورد (به‌خاطر تگ `!!python`)، یعنی هر commit توسعه‌دهنده را متوقف می‌کرد. حالا فقط syntax بررسی می‌شود. پاسخ‌های ضبط‌شده‌ی API و فایل‌های فونت از hookهای ویرایشگر مستثنا شدند تا بایت‌به‌بایت دست‌نخورده بمانند.
-- `uv sync` (یعنی `make install`) حالا ابزار مستندات را هم نصب می‌کند (`default-groups`). بدون آن، `make docs` روی یک clone تازه شکست می‌خورد. ایمیج سرویس با `--no-default-groups` ساخته می‌شود، پس ابزار توسعه و مستندات وارد ایمیج تولیدی نمی‌شوند.
+- The FIPIRAN client, written on day 1 and unused after day 2, was removed ([Data Sources](02-data-sources.md)). Code that doesn't run doesn't get tested either, but a reader of the code still has to make sense of it.
+- The YAML-check pre-commit hook was failing on `mkdocs.yml` (because of the `!!python` tag), blocking every developer's commit. Now it only checks syntax. Recorded API responses and font files were excluded from the formatting hooks so they stay byte-for-byte untouched.
+- `uv sync` (i.e., `make install`) now also installs the docs tooling (`default-groups`). Without it, `make docs` failed on a fresh clone. The service image is built with `--no-default-groups`, so dev and docs tooling never end up in the production image.

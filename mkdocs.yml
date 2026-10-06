@@ -1,5 +1,5 @@
-site_name: مستندات TSETMCViewer
-site_description: سرویس دریافت، پاک‌سازی و تحلیل لحظه‌ای صندوق‌های سهامی قابل معامله بورس تهران
+site_name: TSETMCViewer Documentation
+site_description: A live ingestion, cleaning, and analysis service for Tehran Stock Exchange tradable equity funds
 docs_dir: docs
 site_dir: site
 strict: true
@@ -13,8 +13,8 @@ use_directory_urls: false
 
 theme:
   name: material
-  language: fa            # sets dir="rtl" and Persian UI strings
-  font: false             # self-hosted Vazirmatn (Google Fonts is unreliable from Iran)
+  language: en            # sets dir="ltr" and English UI strings
+  font: false             # self-hosted font (no external Google Fonts dependency)
   icon:
     logo: material/chart-areaspline
     admonition:
@@ -31,12 +31,12 @@ theme:
       scheme: default
       primary: custom
       accent: custom
-      toggle: { icon: material/weather-night, name: حالت تیره }
+      toggle: { icon: material/weather-night, name: Dark mode }
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: custom
       accent: custom
-      toggle: { icon: material/weather-sunny, name: حالت روشن }
+      toggle: { icon: material/weather-sunny, name: Light mode }
   features:
     - navigation.tabs
     - navigation.sections
@@ -84,35 +84,35 @@ markdown_extensions:
       check_paths: true
 
 nav:
-  - خانه: index.md
-  - معماری:
-      - نمای کلی: 01-architecture.md
-      - منابع داده: 02-data-sources.md
-      - مدل داده: 03-data-model.md
-      - کیفیت داده: 04-data-quality.md
-      - منطق مالی: 05-financial-logic.md
-      - پنل و نمودارها: 06-dashboard.md
+  - Home: index.md
+  - Architecture:
+      - Overview: 01-architecture.md
+      - Data Sources: 02-data-sources.md
+      - Data Model: 03-data-model.md
+      - Data Quality: 04-data-quality.md
+      - Financial Logic: 05-financial-logic.md
+      - Dashboard and Charts: 06-dashboard.md
       - API: 07-api.md
-  - تصمیم‌های فنی (ADR):
+  - Architecture Decisions (ADR):
       - adr/index.md
       - "0001 · ClickHouse": adr/0001-clickhouse.md
-      - "0002 · پشته‌ی پایتون async": adr/0002-python-async-stack.md
-      - "0003 · اول داده‌ی خام": adr/0003-raw-first-ingestion.md
-      - "0004 · زمان‌بندی دقیقه‌ای": adr/0004-scheduling.md
-      - "0005 · مایگریشن": adr/0005-migrations.md
-      - "0006 · کش": adr/0006-caching.md
-      - "0007 · هویت صندوق": adr/0007-fund-identity.md
-      - "0008 · پنل وب": adr/0008-web-panel.md
-      - "0009 · پایش": adr/0009-observability.md
-      - "0010 · در دسترس بودن": adr/0010-high-availability.md
-      - "0011 · ریپلیکای ClickHouse": adr/0011-clickhouse-replication.md
-      - "0012 · بازسازی دقیقه‌های جاافتاده": adr/0012-intraday-backfill.md
-      - "0013 · بازسازی جلسه‌های گذشته": adr/0013-session-backfill.md
-  - اجرا و عملیات: 08-runbook.md
-  - آزمون و مقاوم‌سازی: 09-quality-engineering.md
-  - محدودیت‌ها و گام‌های بعدی: 10-limitations.md
-  - پایش و هشدار: 11-monitoring.md
+      - "0002 · Python async stack": adr/0002-python-async-stack.md
+      - "0003 · Raw data first": adr/0003-raw-first-ingestion.md
+      - "0004 · Minute-aligned scheduling": adr/0004-scheduling.md
+      - "0005 · Migrations": adr/0005-migrations.md
+      - "0006 · Caching": adr/0006-caching.md
+      - "0007 · Fund identity": adr/0007-fund-identity.md
+      - "0008 · Web panel": adr/0008-web-panel.md
+      - "0009 · Observability": adr/0009-observability.md
+      - "0010 · High availability": adr/0010-high-availability.md
+      - "0011 · ClickHouse replication": adr/0011-clickhouse-replication.md
+      - "0012 · Intraday backfill": adr/0012-intraday-backfill.md
+      - "0013 · Session backfill": adr/0013-session-backfill.md
+  - Running and Operations: 08-runbook.md
+  - Testing and Hardening: 09-quality-engineering.md
+  - Limitations and Next Steps: 10-limitations.md
+  - Monitoring and Alerting: 11-monitoring.md
 
-# Broken #anchors fail `mkdocs build --strict` too (Persian headings make slugs easy to get wrong).
+# Broken #anchors fail `mkdocs build --strict` too (translated headings make slugs easy to get wrong).
 validation:
   anchors: warn

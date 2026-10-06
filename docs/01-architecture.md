@@ -1,93 +1,93 @@
-# معماری
+# Architecture
 
-<p class="lead">سیستم از چه اجزایی ساخته شده، داده در آن چطور جریان پیدا می‌کند و کدام اصول طراحی این ساختار را شکل داده‌اند.</p>
+<p class="lead">What the system is built from, how data flows through it, and the design principles that shaped this structure.</p>
 
 <figure class="diagram">
-<img src="assets/diagrams/architecture.svg" alt="معماری کلی سرویس">
-<figcaption>شکل ۱ — نمای کلی سرویس. جهت جریان داده از راست به چپ است.</figcaption>
+<img src="assets/diagrams/architecture.svg" alt="Overall service architecture">
+<figcaption>Figure 1 — Service overview. Data flows left to right.</figcaption>
 </figure>
 
-## اجزا
+## Components
 
-| سرویس | مسئولیت | چرخه‌ی عمر |
+| Service | Responsibility | Lifecycle |
 |---|---|---|
-| `clickhouse` | ذخیره‌ی داده‌ی خام، تمیز، مرجع و تجمیعی | دائمی |
-| `migrate` | ساخت دیتابیس و اعمال مایگریشن‌ها | یک بار اجرا می‌شود؛ بقیه منتظر پایان موفق آن می‌مانند |
-| `collector` | دریافت، ذخیره‌ی خام، پارس، اعتبارسنجی، نوشتن، اعلام تیک | دائمی؛ خارج از ساعات بازار می‌خوابد |
-| `api` | خواندن و ارائه‌ی داده، کش پاسخ‌ها، push به پنل | دائمی |
-| `redis` | کش پاسخ‌ها و کانال رویداد تیک | دائمی |
-| `web` | پنل کاربری روی پورت ۸۰۸۰: فایل‌های ایستای React پشت nginx، و پراکسی `/api` به API؛ تب «مستندات» همین‌جاست | دائمی |
+| `clickhouse` | Stores raw, clean, reference and aggregated data | Long-running |
+| `migrate` | Creates the database and applies migrations | Runs once; everything else waits for it to finish successfully |
+| `collector` | Fetches, stores raw, parses, validates, writes, announces ticks | Long-running; sleeps outside market hours |
+| `api` | Reads and serves data, caches responses, pushes to the panel | Long-running |
+| `redis` | Response cache and tick event channel | Long-running |
+| `web` | User panel on port 8080: static React files behind nginx, and an `/api` proxy to the API; the "Docs" tab lives here too | Long-running |
 
-!!! tip "یک ایمیج، چند فرمان"
-    سه سرویس پایتونی (`migrate`، `collector` و `api`) از **یک ایمیج** ساخته می‌شوند و فقط فرمانشان فرق دارد (`tsetmc-viewer migrate | collect | api`). نتیجه: یک بار build، یک نسخه از کد و نبود ناسازگاری بین سرویس‌ها.
+!!! tip "One image, several commands"
+    The three Python services (`migrate`, `collector` and `api`) are built from **a single image** and differ only in their command (`tsetmc-viewer migrate | collect | api`). The result: one build, one version of the code, and no drift between services.
 
-## اصول طراحی
+## Design Principles
 
 <div class="grid cards two" markdown>
 
--   :material-file-document-outline: __جدایی انتقال از تفسیر__
+-   :material-file-document-outline: __Separate transport from interpretation__
 
-    کلاینت‌ها فقط بایت و متادیتا برمی‌گردانند (`RawResponse`) و پارس یک مرحله‌ی جداست. پاسخ خام همیشه ذخیره می‌شود، پیش از هر فرضی درباره‌ی ساختارش. ([ADR 0003](adr/0003-raw-first-ingestion.md))
+    Clients return only bytes and metadata (`RawResponse`); parsing is a separate step. The raw response is always stored first, before any assumption about its structure. ([ADR 0003](adr/0003-raw-first-ingestion.md))
 
--   :material-identifier: __هر چرخه یک شناسه__
+-   :material-identifier: __One id per cycle__
 
-    هر اجرای collector یک `run_id` دارد. پاسخ‌های خام، ردیف‌های تمیز و یافته‌های کیفیت به آن گره می‌خورند، پس «داده‌ی ساعت ۱۰:۴۱ از کجا آمد؟» با یک کوئری جواب داده می‌شود.
+    Every collector run has a `run_id`. Raw responses, clean rows and quality findings all tie back to it, so "where did the 10:41 data come from?" is answered with a single query.
 
 -   :material-repeat-once: __Idempotency__
 
-    جدول `fund_ticks` روی کلید `(ins_code, ts)` است. تکرار یک چرخه داده‌ی تکراری نمی‌سازد، و مایگریشن‌ها هم بارها قابل اجرا هستند.
+    The `fund_ticks` table keys on `(ins_code, ts)`. Repeating a cycle never produces duplicate data, and migrations can be run any number of times.
 
--   :material-shield-half-full: __شکست جزئی، نه کلی__
+-   :material-shield-half-full: __Partial failure, not total failure__
 
-    اگر یک endpoint خطا بدهد، بقیه ذخیره می‌شوند و چرخه با وضعیت `partial` ثبت می‌شود. خطای برنامه‌نویسی عمداً بلعیده نمی‌شود تا دیده شود.
+    If one endpoint errors out, the rest are still stored and the cycle is recorded with status `partial`. Programming errors are deliberately not swallowed, so they stay visible.
 
--   :material-clock-outline: __زمان آگاه از منطقه‌ی زمانی__
+-   :material-clock-outline: __Timezone-aware time__
 
-    همه‌ی زمان‌ها در پایتون و ClickHouse به وقت `Asia/Tehran` هستند. ایران از ۱۴۰۱ ساعت تابستانی ندارد و `zoneinfo` این را درست مدل می‌کند.
+    All timestamps, in both Python and ClickHouse, are in `Asia/Tehran`. Iran has not observed daylight saving since 1401, and `zoneinfo` models this correctly.
 
--   :material-cog-outline: __پیکربندی فقط از محیط__
+-   :material-cog-outline: __Configuration from environment only__
 
-    همه‌ی تنظیمات با `pydantic-settings` از متغیرهای محیطی خوانده و هنگام شروع اعتبارسنجی می‌شوند (12-factor).
+    All settings are read from environment variables with `pydantic-settings` and validated at startup (12-factor).
 
 </div>
 
-## لایه‌های داده
+## Data Layers
 
 <figure class="diagram">
-<img src="assets/diagrams/data-layers.svg" alt="لایه‌های داده">
-<figcaption>شکل ۲ — داده از «خام» به «تمیز» و سپس «تحلیلی» می‌رسد. API هیچ‌وقت داده‌ی خام را نمی‌خواند.</figcaption>
+<img src="assets/diagrams/data-layers.svg" alt="Data layers">
+<figcaption>Figure 2 — Data moves from "raw" to "clean" and then to "analytical". The API never reads raw data.</figcaption>
 </figure>
 
-## لایه‌های کد
+## Code Layers
 
-| ماژول | مسئولیت | نوع I/O |
+| Module | Responsibility | I/O type |
 |---|---|---|
-| `config.py` | تنظیمات تایپ‌شده از متغیرهای محیطی | — |
-| `clock.py` | «الان بازار باز است؟» و هم‌ترازی با مرز دقیقه | — |
-| `sources/` | کلاینت‌های HTTP: `http.py` (retry، backoff، semaphore)، `tsetmc.py` | شبکه |
-| `collector/` | ارکستراسیون یک چرخه و حلقه‌ی دائمی | — |
-| `storage/` | اتصال ClickHouse، مایگریشن‌ها، repository | دیتابیس |
-| `api/` | لایه‌ی ارائه: `app.py`، `deps.py`، `routes/` | HTTP |
+| `config.py` | Typed settings from environment variables | — |
+| `clock.py` | "Is the market open right now?" and alignment to the minute boundary | — |
+| `sources/` | HTTP clients: `http.py` (retry, backoff, semaphore), `tsetmc.py` | Network |
+| `collector/` | Orchestrates a single cycle and the long-running loop | — |
+| `storage/` | ClickHouse connection, migrations, repository | Database |
+| `api/` | Presentation layer: `app.py`, `deps.py`, `routes/` | HTTP |
 
-وابستگی‌ها فقط در یک جهت‌اند: `api` و `collector` به `storage` و `sources` وابسته‌اند، نه برعکس. `collector` به یک `Protocol` (`RunSink`) وابسته است، نه به کلاس مشخص، پس بدون دیتابیس و با یک پیاده‌سازی درون‌حافظه تست می‌شود.
+Dependencies point in one direction only: `api` and `collector` depend on `storage` and `sources`, never the reverse. `collector` depends on a `Protocol` (`RunSink`), not a concrete class, so it can be tested without a database using an in-memory implementation.
 
-## یک چرخه‌ی دریافت
+## A Collection Cycle
 
 <figure class="diagram">
-<img src="assets/diagrams/cycle.svg" alt="بودجه‌ی زمانی یک چرخه‌ی دقیقه‌ای">
-<figcaption>شکل ۳ — بودجه‌ی زمانی یک چرخه بر اساس اندازه‌گیری واقعی. با فشرده‌سازی gzip دیده‌بان کل بازار حدود ۱ ثانیه طول می‌کشد و بیشترین زمان صرف درخواست‌های NAV می‌شود (<a href="adr/0006-caching.md">ADR 0006، بازبینی روز ۴</a>).</figcaption>
+<img src="assets/diagrams/cycle.svg" alt="Time budget of a one-minute cycle">
+<figcaption>Figure 3 — Time budget of a cycle based on real measurement. With gzip compression, scanning the whole market takes about 1 second, and most of the time goes to NAV requests (<a href="adr/0006-caching.md">ADR 0006, Day 4 revision</a>).</figcaption>
 </figure>
 
-1. `tick` = زمان جاری گردشده به دقیقه. همه‌ی صندوق‌ها یک برچسب زمانی مشترک می‌گیرند.
-2. دریافت موازی endpointهای تجمیعی (دیده‌بان بازار، حقیقی/حقوقی) و NAV هر صندوق، با سقف هم‌زمانی.
-3. ذخیره‌ی پاسخ‌های خام در `raw_snapshots`.
-4. پارس ← فیلتر به فهرست صندوق‌های سهامی ← اعتبارسنجی ← اصلاح یا پرچم‌گذاری.
-5. نوشتن دسته‌ای در `fund_ticks` و `data_quality_log`.
-6. ثبت `collection_runs` و انتشار رویداد «تیک N».
+1. `tick` = the current time rounded to the minute. All funds get a shared timestamp.
+2. Parallel fetch of aggregate endpoints (market watch, individual/institutional) and each fund's NAV, under a concurrency cap.
+3. Store raw responses in `raw_snapshots`.
+4. Parse → filter to the list of equity funds → validate → repair or flag.
+5. Batch write to `fund_ticks` and `data_quality_log`.
+6. Record `collection_runs` and publish a "tick N" event.
 
-??? info "وضعیت پیاده‌سازی"
-    - [x] ذخیره‌ی خام و ثبت چرخه — روز ۱
-    - [x] فهرست روزانه‌ی صندوق‌ها، NAV هر صندوق، پارس، ساخت تیک، `market_ticks` — روز ۲
-    - [x] `replay`: بازسازی تیک‌های یک روز از داده‌ی خام — روز ۲
-    - [x] اعتبارسنجی و اصلاح، گزارش کیفیت — روز ۳
-    - [x] تاریخچه‌ی روزانه، منطق مالی، API، انتشار تیک، کش Redis و SSE — روز ۴
+??? info "Implementation status"
+    - [x] Raw storage and cycle logging — Day 1
+    - [x] Daily fund list, per-fund NAV, parsing, tick assembly, `market_ticks` — Day 2
+    - [x] `replay`: rebuild a day's ticks from raw data — Day 2
+    - [x] Validation and repair, quality reporting — Day 3
+    - [x] Daily history, financial logic, API, tick publishing, Redis cache and SSE — Day 4

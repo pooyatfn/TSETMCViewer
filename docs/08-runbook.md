@@ -1,174 +1,174 @@
-# اجرا و عملیات
+# Running and Operations
 
-<p class="lead">نصب، اجرا، پایش و عیب‌یابی سرویس. همه‌چیز با Docker Compose اجرا می‌شود و روی هر محیطی که Docker دارد بالا می‌آید.</p>
+<p class="lead">Installing, running, monitoring, and troubleshooting the service. Everything runs with Docker Compose and comes up on any environment that has Docker.</p>
 
-## پیش‌نیازها
+## Prerequisites
 
-| ابزار | نسخه | برای |
+| Tool | Version | For |
 |---|---|---|
-| Docker Engine | 24 به بالا | اجرای همه‌ی سرویس‌ها |
-| Docker Compose | 2.24 به بالا | `env_file` اختیاری و `depends_on` شرطی |
-| [uv](https://docs.astral.sh/uv/) | 0.8 به بالا | فقط برای توسعه‌ی محلی؛ پایتون ۳.۱۲ را خودش نصب می‌کند |
+| Docker Engine | 24+ | Running all services |
+| Docker Compose | 2.24+ | Optional `env_file` and conditional `depends_on` |
+| [uv](https://docs.astral.sh/uv/) | 0.8+ | Local development only; it installs Python 3.12 itself |
 
-## شبکه: VPN و TSETMC
+## Networking: VPN and TSETMC {#vpn-and-tsetmc-networking}
 
-!!! danger "مهم‌ترین نکته‌ی اجرا در ایران"
-    دو محدودیت خلاف جهت هم وجود دارد. **ساخت** ایمیج به اینترنت بین‌الملل نیاز دارد، اما **اجرا** به IP ایران.
+!!! danger "The most important operational note for Iran"
+    Two restrictions pull in opposite directions. **Building** the image requires international internet access, but **running** it requires an Iranian IP.
 
-| مقصد | از داخل ایران | با VPN خارجی |
+| Destination | From inside Iran | With a foreign VPN |
 |---|:---:|:---:|
-| Docker Hub (ایمیج‌ها) | :material-close-circle:{ style="color: var(--bad)" } معمولاً مسدود | :material-check-circle:{ style="color: var(--ok)" } |
-| PyPI و npm (هنگام build) | :material-check-circle:{ style="color: var(--ok)" } گاهی کند | :material-check-circle:{ style="color: var(--ok)" } |
-| **TSETMC** | :material-check-circle:{ style="color: var(--ok)" } | :material-close-circle:{ style="color: var(--bad)" } IP خارجی رد می‌شود |
+| Docker Hub (images) | :material-close-circle:{ style="color: var(--bad)" } usually blocked | :material-check-circle:{ style="color: var(--ok)" } |
+| PyPI and npm (during build) | :material-check-circle:{ style="color: var(--ok)" } sometimes slow | :material-check-circle:{ style="color: var(--ok)" } |
+| **TSETMC** | :material-check-circle:{ style="color: var(--ok)" } | :material-close-circle:{ style="color: var(--bad)" } foreign IP is rejected |
 
 ```text
-۱. VPN روشن  →  docker compose build && docker compose pull
-۲. VPN خاموش →  docker compose up -d
+1. VPN on  →  docker compose build && docker compose pull
+2. VPN off →  docker compose up -d
 ```
 
 !!! tip "split tunneling"
-    اگر VPN از split tunneling پشتیبانی می‌کند، دامنه‌ی `tsetmc.com` را از تونل مستثنا کنید تا نیازی به خاموش کردن VPN نباشد. اگر TSETMC فقط از طریق یک پراکسی داخلی در دسترس است، `HTTPS_PROXY` را در `.env` تنظیم کنید. httpx آن را رعایت می‌کند.
+    If your VPN supports split tunneling, exclude the `tsetmc.com` domain from the tunnel so you don't need to turn the VPN off. If TSETMC is only reachable through an internal proxy, set `HTTPS_PROXY` in `.env`; httpx honors it.
 
-## اجرا
+## Running
 
-=== "Docker (پیشنهادی)"
+=== "Docker (recommended)"
 
     ```bash
-    cp .env.example .env            # در صورت نیاز رمز ClickHouse را عوض کنید
+    cp .env.example .env            # change the ClickHouse password if needed
     docker compose up -d --build
-    docker compose ps               # migrate باید Exited (0) باشد
+    docker compose ps               # migrate should be Exited (0)
     curl localhost:8000/health      # {"status":"ok","clickhouse":true,...}
     ```
 
-    | آدرس | سرویس |
+    | Address | Service |
     |---|---|
-    | <http://localhost:8080> | **پنل کاربری** (تب «مستندات» شامل خلاصه‌ی همین اسناد است) |
-    | <http://localhost:8000/docs> | مستندات تعاملی API (Swagger) |
-    | <http://localhost:8123/play> | کنسول کوئری ClickHouse |
+    | <http://localhost:8080> | **User panel** (the "Documentation" tab contains a summary of these very docs) |
+    | <http://localhost:8000/docs> | Interactive API documentation (Swagger) |
+    | <http://localhost:8123/play> | ClickHouse query console |
 
-    **پنل از همان اولین اجرا خالی نیست.** اگر `collector` خارج از ساعات بازار شروع شود (VPN خاموش)، خودش این کارها را انجام می‌دهد:
+    **The panel isn't empty from the very first run.** If `collector` starts outside market hours (VPN off), it performs the following on its own:
 
-    1. تاریخچه‌ی رسمی روزانه را تا آخرین جلسه بارگذاری می‌کند: ۴۰۰ روز در دیتابیس خالی (`HISTORY_MAX_DAYS`)، و در دفعات بعد فقط روزهای جاافتاده.
-    2. اگر از آخرین جلسه هیچ داده‌ی دقیقه‌ای نیست، یک **عکس پایانی** (closing snapshot) از آن جلسه می‌گیرد، با برچسب زمانی ساعت بسته شدن همان جلسه.
+    1. Loads the official daily history up to the last session: 400 days on an empty database (`HISTORY_MAX_DAYS`), and only the missing days on subsequent runs.
+    2. If there is no minute-level data for the last session, it takes a **closing snapshot** of that session, timestamped at that session's closing time.
 
-    این کار حدود یک تا دو دقیقه طول می‌کشد. پیشرفت آن را با `docker compose logs -f collector` ببینید (پیام `bootstrap done`). برای اجرای دستی:
+    This takes about one to two minutes. Watch its progress with `docker compose logs -f collector` (the `bootstrap done` message). To run it manually:
 
     ```bash
     docker compose run --rm collector bootstrap
     ```
 
-    اگر کالکتور در ساعات بازار شروع شود، این مرحله انجام نمی‌شود: چرخه‌های زنده بلافاصله شروع می‌شوند و تاریخچه نیم ساعت بعد از بسته شدن بازار بارگذاری می‌شود.
+    If the collector starts during market hours, this step is skipped: live cycles start immediately, and history is loaded half an hour after the market closes.
 
-=== "توسعه‌ی محلی"
+=== "Local development"
 
     ```bash
     make install                    # uv sync + pre-commit
     docker compose up -d clickhouse migrate
     uv run tsetmc-viewer collect-once
     uv run tsetmc-viewer api --port 8000
-    uv run mkdocs serve             # مستندات روی :8000 با بارگذاری خودکار
+    uv run mkdocs serve             # docs on :8000 with live reload
     ```
 
-## فرمان‌ها
+## Commands
 
-همه‌ی فرمان‌ها هم با `uv run tsetmc-viewer …` و هم در Docker با `docker compose run --rm collector …` اجرا می‌شوند.
+All commands run both via `uv run tsetmc-viewer …` and, in Docker, via `docker compose run --rm collector …`.
 
-| فرمان | کار |
+| Command | Does |
 |---|---|
-| `migrate` | ساخت دیتابیس و اعمال مایگریشن‌ها |
-| `sync-funds` | ساخت فهرست امروز صندوق‌ها و چاپ آن به تفکیک نوع |
-| `collect` | حلقه‌ی دائمی: همگام‌سازی پیش از بازگشایی و یک چرخه در هر دقیقه |
-| `collect-once` | یک چرخه‌ی فوری |
-| `replay --date 2026-09-26` | بازسازی `fund_ticks` یک روز از `raw_snapshots` (پس از اصلاح پارسر) |
-| `quality --date 2026-09-26` | گزارش کیفیت داده‌ی یک روز: کامل بودن، پرچم‌ها و رخدادها |
-| `bootstrap` | خارج از ساعات بازار: تاریخچه تا آخرین جلسه + عکس پایانی آن جلسه اگر داده‌ی دقیقه‌ای ندارد (collector هنگام شروع خودش اجرا می‌کند) |
-| `backfill-intraday` | بازسازی دقیقه‌های امروز پیش از روشن شدن collector از ریز معاملات (collector خودش پس از سومین چرخه اجرا می‌کند؛ [ADR 0012](adr/0012-intraday-backfill.md)). :warning: VPN خاموش |
-| `backfill-sessions [--through DAY] [--days N]` | بازسازی دقیقه‌های `N` روز معاملاتی اخیر (پیش‌فرض `SESSION_BACKFILL_DAYS`) تا و شامل `--through` از تاریخچه‌ی قیمت (collector خودش در bootstrap اجرا می‌کند؛ [ADR 0013](adr/0013-session-backfill.md)). خروجی هر `BackfillReport` را چاپ می‌کند؛ `rejected_symbols` نشان می‌دهد کدام صندوق با رقم رسمی نخوانده. :warning: VPN خاموش |
-| `backfill --days N` | بارگذاری دوباره‌ی تاریخچه‌ی رسمی روزانه با پنجره‌ی دلخواه (پیش‌فرض `HISTORY_MAX_DAYS`) |
-| `api` | اجرای API |
-| `healthcheck` | کد خروج ۰ اگر حلقه‌ی collector زنده است (healthcheck داکر) |
-| `alert-relay` | رساندن هشدارهای Alertmanager به بله، تلگرام یا webhook |
-| `api --workers N` | API با N پروسه (پیش‌فرض `API_WORKERS`) |
+| `migrate` | Creates the database and applies migrations |
+| `sync-funds` | Builds today's fund list and prints it broken down by type |
+| `collect` | Continuous loop: syncs before market open and runs one cycle per minute |
+| `collect-once` | A single immediate cycle |
+| `replay --date 2026-09-26` | Rebuilds `fund_ticks` for one day from `raw_snapshots` (after a parser fix) |
+| `quality --date 2026-09-26` | Data-quality report for a day: completeness, flags, and events |
+| `bootstrap` | Outside market hours: history up to the last session + a closing snapshot of that session if it has no minute-level data (collector runs this itself on startup) |
+| `backfill-intraday` | Rebuilds today's minute bars, from before the collector started, from trade-by-trade data (collector runs this itself after the third cycle; [ADR 0012](adr/0012-intraday-backfill.md)). :warning: VPN off |
+| `backfill-sessions [--through DAY] [--days N]` | Rebuilds minute bars for the last `N` trading days (default `SESSION_BACKFILL_DAYS`) up to and including `--through`, from price history (collector runs this itself during bootstrap; [ADR 0013](adr/0013-session-backfill.md)). Prints each `BackfillReport`'s output; `rejected_symbols` shows which funds didn't reconcile with the official figure. :warning: VPN off |
+| `backfill --days N` | Reloads the official daily history with a custom window (default `HISTORY_MAX_DAYS`) |
+| `api` | Runs the API |
+| `healthcheck` | Exit code 0 if the collector loop is alive (Docker healthcheck) |
+| `alert-relay` | Delivers Alertmanager alerts to Bale, Telegram, or a webhook |
+| `api --workers N` | API with N worker processes (default `API_WORKERS`) |
 
-خارج از ساعات بازار (شنبه تا چهارشنبه، ۹:۰۰ تا ۱۲:۳۰) collector می‌خوابد. برای آزمایش:
+Outside market hours (Saturday through Wednesday, 9:00 to 12:30) the collector sleeps. To test it:
 
 ```bash
-make collect-once                                          # یک چرخه‌ی فوری
-COLLECT_IGNORE_MARKET_HOURS=true docker compose up -d collector   # دریافت دائمی
+make collect-once                                          # a single immediate cycle
+COLLECT_IGNORE_MARKET_HOURS=true docker compose up -d collector   # continuous collection
 ```
 
-## پایش
+## Monitoring
 
-برای داشبورد و هشدار، profile پایش را هم بالا بیاورید (Grafana روی <http://localhost:3000>). راه‌اندازی، گرفتن هشدار در بله و راهنمای رفع هر هشدار در [پایش و هشدار](11-monitoring.md) آمده است:
+For dashboards and alerting, also bring up the monitoring profile (Grafana at <http://localhost:3000>). Setup, receiving alerts in Bale, and the fix guide for each alert are in [Monitoring and Alerting](11-monitoring.md):
 
 ```bash
 docker compose --profile monitoring up -d
 ```
 
-بدون آن هم ابزارهای زیر در دسترس‌اند:
+Even without it, the following tools are available:
 
 ```bash
-docker compose ps                                    # collector: healthy = حلقه زنده است
-curl -s localhost:8000/health | jq .collector        # ok / stale / idle + تأخیر و شکست‌های پیاپی
-make logs                                            # لاگ JSON از collector و api
-curl 'localhost:8000/api/v1/pipeline/runs?limit=10'  # آخرین چرخه‌ها
+docker compose ps                                    # collector: healthy = the loop is alive
+curl -s localhost:8000/health | jq .collector        # ok / stale / idle + lag and consecutive failures
+make logs                                            # JSON logs from collector and api
+curl 'localhost:8000/api/v1/pipeline/runs?limit=10'  # the latest cycles
 ```
 
-دو نوع سلامت عمداً از هم جدا هستند ([جزئیات](09-quality-engineering.md#دو-نوع-سلامت-عمدا-جدا)): «حلقه زنده است» (داکر) و «داده تازه است» (`/health`). بعد از ۳ چرخه‌ی ناموفق پیاپی، collector **یک** پیام `collector failing` در سطح ERROR لاگ می‌کند و هنگام بازگشت، پیام `collector recovered`.
+Two kinds of health are deliberately separate ([details](09-quality-engineering.md#two-kinds-of-health-are-deliberately-separate)): "the loop is alive" (Docker) and "data is fresh" (`/health`). After 3 consecutive failed cycles, the collector logs **one** `collector failing` message at ERROR level, and a `collector recovered` message when it recovers.
 
-??? example "کوئری‌های مفید ClickHouse"
+??? example "Useful ClickHouse queries"
 
     ```sql
-    -- سلامت چرخه‌ها در یک ساعت اخیر
+    -- health of cycles in the last hour
     SELECT status, count(), avg(dateDiff('millisecond', started_at, finished_at)) AS avg_ms
     FROM collection_runs WHERE started_at > now() - INTERVAL 1 HOUR GROUP BY status;
 
-    -- تأخیر و نرخ خطای هر endpoint
+    -- latency and error rate per endpoint
     SELECT endpoint, count(), countIf(status_code != 200) AS errors,
            quantile(0.95)(latency_ms) AS p95_ms
     FROM raw_snapshots WHERE fetched_at > now() - INTERVAL 1 DAY GROUP BY endpoint;
     ```
 
-## تقویم و تعطیلات
+## Calendar and Holidays
 
-- تعطیلات رسمی ۱۴۰۵ و تعطیلات شمسی هر سال در `src/tsetmc_viewer/domain/calendar.py` هستند. فهرست یک سال را از API ببینید: `curl localhost:8000/api/v1/calendar?year=1405`.
-- **تعطیلی اعلام‌شده توسط بورس** (مثلاً تعطیلی ناگهانی): در `.env` بنویسید `MARKET_EXTRA_HOLIDAYS={"2026-10-05": "دلیل"}` و collector را restart کنید.
-- **تعطیلی اعلام‌نشده:** لازم نیست کاری بکنید. اگر تا ۲۰ دقیقه پس از بازگشایی معامله‌ای ثبت نشود، collector آن روز را تعطیل ثبت می‌کند و تا جلسه‌ی بعد می‌خوابد (`MARKET_SESSION_GUARD_MINUTES`).
-- **سال جدید:** در ابتدای هر سال شمسی، تعطیلات قمری آن سال را از تقویم رسمی به `LUNAR_HOLIDAYS` اضافه کنید. تا آن موقع، نگهبان جلسه روزهای تعطیل را از رفتار بازار تشخیص می‌دهد و collector در لاگ یک هشدار ثبت می‌کند.
+- Official holidays for 1405 and each year's solar holidays live in `src/tsetmc_viewer/domain/calendar.py`. See a given year's list via the API: `curl localhost:8000/api/v1/calendar?year=1405`.
+- **A holiday announced by the exchange** (e.g., a sudden closure): write `MARKET_EXTRA_HOLIDAYS={"2026-10-05": "reason"}` in `.env` and restart the collector.
+- **An unannounced holiday:** you don't need to do anything. If no trade is recorded within 20 minutes of market open, the collector marks that day as a holiday and sleeps until the next session (`MARKET_SESSION_GUARD_MINUTES`).
+- **New year:** at the start of each solar year, add that year's lunar holidays from the official calendar to `LUNAR_HOLIDAYS`. Until then, the session guard detects holiday days from market behavior, and the collector logs a warning.
 
-## چند نمونه
+## Multiple Instances
 
-در compose دو collector اجرا می‌شود (`COLLECTOR_REPLICAS`) و فقط یکی رهبر است ([ADR 0010](adr/0010-high-availability.md)). نمونه‌ی رهبر را از لاگ (`leadership acquired`) یا از داشبورد «دریافت داده» پیدا کنید. برای آزمایش جابه‌جایی رهبر:
+Compose runs two collectors (`COLLECTOR_REPLICAS`), and only one is the leader ([ADR 0010](adr/0010-high-availability.md)). Find the leader instance from the log (`leadership acquired`) or from the "Data Collection" dashboard. To test leader failover:
 
 ```bash
-docker compose stop collector && docker compose up -d collector   # یا یک نمونه را kill کنید
+docker compose stop collector && docker compose up -d collector   # or kill one instance
 docker compose logs collector | grep leadership
 ```
 
-## عیب‌یابی
+## Troubleshooting
 
-| نشانه | علت محتمل | راه‌حل |
+| Symptom | Likely cause | Fix |
 |---|---|---|
-| همه‌ی چرخه‌ها `failed` با `ConnectError` یا `403` | VPN روشن است یا IP مسدود شده | VPN را خاموش یا split tunnel کنید |
-| `migrate` با خطای احراز هویت خارج می‌شود | رمز `.env` با volume قبلی ClickHouse نمی‌خواند | رمز قبلی را برگردانید یا `docker compose down -v` (:warning: داده پاک می‌شود) |
-| `collector failing` در لاگ و `stale` در `/health` | TSETMC در دسترس نیست (معمولاً VPN) | VPN را خاموش کنید. حلقه خودش ادامه می‌دهد و نیازی به restart نیست |
-| پنل پیام «database unavailable» (503) نشان می‌دهد | ClickHouse بالا نیست یا راه‌اندازی آن تمام نشده | `docker compose ps clickhouse` و `docker compose logs clickhouse` |
-| لاگ `waiting for the first trade of the day` در ساعات بازار | TSETMC هنوز معامله‌ی امروز را نشان نمی‌دهد | طبیعی است؛ تا ۲۰ دقیقه منتظر می‌ماند و بعد روز را تعطیل ثبت می‌کند |
-| همه‌ی collectorها `standby` هستند | lease رهبری در Redis گیر کرده است (نباید رخ دهد: TTL دارد) | پس از حداکثر ۶۰ ثانیه خودش آزاد می‌شود؛ `docker compose logs redis` |
-| ClickHouse بالا نمی‌آید: `Access to file denied: …/config.d/prometheus.xml` و `dependency failed to start: … is unhealthy` | ایمیج قدیمی که فایل پیکربندی را از دیسک mount می‌کرد؛ فایلی که روی میزبان فقط برای صاحبش خواندنی است (`0600`) برای کاربر ClickHouse داخل کانتینر (uid ۱۰۱) خواندنی نیست | `docker compose --profile monitoring up -d --build`. از این نسخه پیکربندی‌ها با مجوز ثابت داخل ایمیج کپی می‌شوند ([ADR 0009](adr/0009-observability.md#بازبینی-پیکربندی-داخل-ایمیج-نه-mount)) |
-| collector دیر روشن شد ولی صفحه‌ی صندوق خط‌چین صبح را ندارد | بازسازی پس از **سومین** چرخه اجرا می‌شود؛ یا آن صندوق رد شد چون زمان معاملاتش با تیک‌های زنده نمی‌خواند | لاگ `intraday backfill done` (فهرست `rejected_symbols`)، یا `SELECT status, count() FROM intraday_backfill_log FINAL WHERE day = today() GROUP BY status` ([ADR 0012](adr/0012-intraday-backfill.md)) |
-| collector مدام «market closed» لاگ می‌کند | خارج از ساعات بازار | طبیعی است؛ برای آزمایش `COLLECT_IGNORE_MARKET_HOURS=true` |
-| build روی `uv sync` گیر می‌کند | دسترسی به PyPI | VPN روشن، یا `UV_INDEX_URL` را روی یک mirror تنظیم کنید |
+| All cycles `failed` with `ConnectError` or `403` | VPN is on or the IP is blocked | Turn off the VPN or use split tunneling |
+| `migrate` exits with an authentication error | The `.env` password doesn't match the previous ClickHouse volume | Restore the previous password, or `docker compose down -v` (:warning: this wipes data) |
+| `collector failing` in the log and `stale` in `/health` | TSETMC is unreachable (usually VPN) | Turn off the VPN. The loop keeps going on its own; no restart is needed |
+| The panel shows a "database unavailable" (503) message | ClickHouse is down or still starting up | `docker compose ps clickhouse` and `docker compose logs clickhouse` |
+| `waiting for the first trade of the day` in the log during market hours | TSETMC still isn't showing today's trades | Normal; it waits up to 20 minutes and then marks the day as a holiday |
+| All collectors are `standby` | The leadership lease in Redis is stuck (shouldn't happen: it has a TTL) | It releases itself after at most 60 seconds; `docker compose logs redis` |
+| ClickHouse won't start: `Access to file denied: …/config.d/prometheus.xml` and `dependency failed to start: … is unhealthy` | An old image that mounted the config file from disk; a file that's owner-readable-only on the host (`0600`) isn't readable by the ClickHouse user inside the container (uid 101) | `docker compose --profile monitoring up -d --build`. From this version on, configs are copied into the image with fixed permissions ([ADR 0009](adr/0009-observability.md#config-baked-into-image-not-mounted)) |
+| The collector started late and the fund's chart is missing the morning section | Backfill runs after the **third** cycle; or that fund was rejected because its trading times don't align with the live ticks | `intraday backfill done` in the log (lists `rejected_symbols`), or `SELECT status, count() FROM intraday_backfill_log FINAL WHERE day = today() GROUP BY status` ([ADR 0012](adr/0012-intraday-backfill.md)) |
+| The collector keeps logging "market closed" | Outside market hours | Normal; for testing use `COLLECT_IGNORE_MARKET_HOURS=true` |
+| The build hangs on `uv sync` | PyPI access | Turn the VPN on, or point `UV_INDEX_URL` at a mirror |
 
-## تست
+## Testing
 
-| فرمان | چه چیزی | نیاز |
+| Command | What it does | Requires |
 |---|---|---|
-| `make test` | تست‌های واحد | هیچ (بدون شبکه و دیتابیس) |
-| `make test-all` | به‌علاوه‌ی تست یکپارچگی روی ClickHouse واقعی | `docker compose up -d clickhouse` |
-| `make fixtures` | ضبط پاسخ واقعی APIها در `tests/fixtures/captured` و ساخت نمونه‌ی کوچک در `tests/fixtures/sample` | :warning: VPN خاموش |
-| `make probe` | اندازه‌گیری دریافت تغییرات (delta) دیده‌بان | :warning: VPN خاموش، در ساعات بازار |
-| `make docs` | ساخت سایت مستندات با `--strict` | — |
-| `make check` | همه‌ی بررسی‌های CI به‌جز آزمون دود: lint، type، تست‌ها با پوشش، پنل، مستندات | ClickHouse در حال اجرا |
-| `make web-test` | بررسی نوع و تست‌های پنل | `make web-install` |
-| `uv run python scripts/loadtest.py` | آزمون بار مسیر خواندن API ([نتایج](09-quality-engineering.md#آزمون-بار)) | API در حال اجرا |
+| `make test` | Unit tests | None (no network or database) |
+| `make test-all` | Plus integration tests against real ClickHouse | `docker compose up -d clickhouse` |
+| `make fixtures` | Records real API responses into `tests/fixtures/captured` and builds a small sample in `tests/fixtures/sample` | :warning: VPN off |
+| `make probe` | Measures the watcher's delta-fetch performance | :warning: VPN off, during market hours |
+| `make docs` | Builds the docs site with `--strict` | — |
+| `make check` | All CI checks except the smoke test: lint, types, tests with coverage, panel, docs | ClickHouse running |
+| `make web-test` | Panel type-checking and tests | `make web-install` |
+| `uv run python scripts/loadtest.py` | Load test of the API read path ([results](09-quality-engineering.md#load-test)) | API running |

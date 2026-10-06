@@ -1,189 +1,189 @@
-# منابع داده
+# Data Sources
 
-<p class="lead">چه داده‌ای را ارائه‌دهنده می‌دهد، چه چیزی را خودمان می‌سازیم و هر کدام در کدام مرحله به دیتابیس اضافه می‌شود. همه‌ی اعداد این صفحه از پاسخ‌های واقعی ضبط‌شده در <code>tests/fixtures</code> (۲ مهر ۱۴۰۵) آمده‌اند.</p>
+<p class="lead">What the provider supplies, what we build ourselves, and at which stage each is added to the database. Every number on this page comes from real responses recorded in <code>tests/fixtures</code> (2 Mehr 1405).</p>
 
 <div class="kpis">
-  <div class="kpi"><b>۳٬۷۹۸</b><span>نماد در دیده‌بان بازار</span></div>
-  <div class="kpi"><b>۹۹۳</b><span>نماد در گروه ۶۸ (صندوق‌ها و اختیار معامله‌شان)</span></div>
-  <div class="kpi"><b>۴۳۲</b><span>واحد صندوق قابل معامله</span></div>
-  <div class="kpi"><b>۱ ث</b><span>زمان پاسخ دیده‌بان کامل با gzip</span></div>
+  <div class="kpi"><b>3,798</b><span>symbols in the market watch</span></div>
+  <div class="kpi"><b>993</b><span>symbols in group 68 (funds and their options)</span></div>
+  <div class="kpi"><b>432</b><span>tradable fund units</span></div>
+  <div class="kpi"><b>1 s</b><span>response time for the full market watch with gzip</span></div>
 </div>
 
-## ارائه‌دهنده: TSETMC
+## Provider: TSETMC
 
-**شرکت مدیریت فناوری بورس تهران** تنها منبعی است که داده‌ی درون‌روز معاملات را منتشر می‌کند. این سرویس از API عمومی سایت آن (`cdn.tsetmc.com/api`) استفاده می‌کند. این API مستندات رسمی و نسخه‌بندی ندارد. به همین دلیل پاسخ خام همیشه ذخیره می‌شود ([ADR 0003](adr/0003-raw-first-ingestion.md)) و پارسرها با پاسخ‌های واقعی ضبط‌شده تست می‌شوند.
+**Tehran Securities Exchange Technology Management Co. (TSETMC)** is the only source that publishes intraday trading data. This service uses its site's public API (`cdn.tsetmc.com/api`). This API has no official documentation and no versioning. For this reason, the raw response is always stored ([ADR 0003](adr/0003-raw-first-ingestion.md)), and parsers are tested against real recorded responses.
 
-### endpointها و اندازه‌گیری واقعی
+### Endpoints and real-world measurements
 
-| endpoint | کاربرد | حجم | زمان پاسخ | تناوب |
+| endpoint | Purpose | Size | Response time | Frequency |
 |---|---|--:|--:|---|
-| `ClosingPrice/GetMarketWatch` | دیده‌بان کل بازار: قیمت، حجم، ارزش، ۵ سطح سفارش | ۳٫۵ MB (با gzip ۶۱۰ KB) | ۱٫۰ ث | هر دقیقه |
-| `tsev2/data/MarketWatchPlus.aspx` (نسخه‌ی قدیم) | همان داده، CSV فشرده | ۰٫۴ MB | ۴٫۱ ث | گزینه‌ی جایگزین |
-| `ClientType/GetClientTypeAll` | حجم و تعداد خرید و فروش حقیقی/حقوقی همه‌ی نمادها | ۵۰۰ KB | ۲٫۲ ث | هر دقیقه |
-| `Fund/GetETFByInsCode/{ins}` | NAV ابطال و صدور، **با زمان محاسبه** | ۱۲۰ B | ۰٫۲–۰٫۸ ث | هر دقیقه، به‌ازای هر صندوق |
-| `ClosingPrice/GetClosingPriceInfo/{ins}` | **وضعیت نماد** (`cEtaval`: مجاز، مجاز-متوقف، مجاز-محفوظ، ممنوع …) و «تحت نظر» | ۱ KB | ۰٫۲ ث | همه‌ی صندوق‌ها در اولین چرخه‌ی روز، سپس هر صندوق هر ۵ دقیقه (یک‌پنجم در هر دقیقه) |
-| `Instrument/GetInstrumentInfo/{ins}` | **نوع صندوق**، تعداد واحد صادرشده، ISIN، آستانه‌ی قیمت | ۱ KB | ۰٫۲ ث | روزانه |
-| `ClosingPrice/GetClosingPriceDailyList/{ins}/0` | تاریخچه‌ی روزانه‌ی قیمت (تا ۳۰۰۰ روز) | ۰٫۴–۱ MB | ۰٫۵–۴ ث | یک بار + روزانه |
-| `ClientType/GetClientTypeHistory/{ins}` | تاریخچه‌ی روزانه‌ی حقیقی/حقوقی **با ارزش ریالی** | ۰٫۴–۰٫۹ MB | ۰٫۵–۲٫۴ ث | یک بار + روزانه |
-| `MarketData/GetMarketOverview/1` | شاخص کل، وضعیت بازار (باز/بسته) | ۰٫۵ KB | ۰٫۳ ث | هر دقیقه |
+| `ClosingPrice/GetMarketWatch` | Full market watch: price, volume, value, 5 order-book levels | 3.5 MB (610 KB with gzip) | 1.0 s | every minute |
+| `tsev2/data/MarketWatchPlus.aspx` (legacy version) | Same data, compressed CSV | 0.4 MB | 4.1 s | fallback option |
+| `ClientType/GetClientTypeAll` | Retail/institutional buy and sell volume and count for all symbols | 500 KB | 2.2 s | every minute |
+| `Fund/GetETFByInsCode/{ins}` | Redemption and issuance NAV, **with calculation time** | 120 B | 0.2–0.8 s | every minute, per fund |
+| `ClosingPrice/GetClosingPriceInfo/{ins}` | **Symbol status** (`cEtaval`: allowed, allowed-halted, allowed-reserved, banned, …) and "under supervision" | 1 KB | 0.2 s | all funds on the first cycle of the day, then each fund every 5 minutes (one-fifth per minute) |
+| `Instrument/GetInstrumentInfo/{ins}` | **Fund type**, number of units issued, ISIN, price threshold | 1 KB | 0.2 s | daily |
+| `ClosingPrice/GetClosingPriceDailyList/{ins}/0` | Daily price history (up to 3,000 days) | 0.4–1 MB | 0.5–4 s | once + daily |
+| `ClientType/GetClientTypeHistory/{ins}` | Daily retail/institutional history **with rial value** | 0.4–0.9 MB | 0.5–2.4 s | once + daily |
+| `MarketData/GetMarketOverview/1` | Overall index, market status (open/closed) | 0.5 KB | 0.3 s | every minute |
 
-!!! success "اصلاح یک اندازه‌گیری: gzip"
-    اندازه‌گیری اول ۱۵ ثانیه برای دیده‌بان نشان داد، چون اسکریپت ضبط هدر `Accept-Encoding: gzip` نمی‌فرستاد. با فشرده‌سازی (که httpx در collector به‌طور پیش‌فرض درخواست می‌کند) همان پاسخ ۶۱۰ کیلوبایت است و در ۱ ثانیه می‌رسد. دریافت فقط تغییرات (`hEven`/`RefID`) هم آزمایش شد و کار می‌کند، اما به دلایلی که در [ADR 0006](adr/0006-caching.md) آمده، به کار گرفته نشد.
+!!! success "Correcting a measurement: gzip"
+    The first measurement showed 15 seconds for the market watch, because the recording script wasn't sending the `Accept-Encoding: gzip` header. With compression (which httpx requests by default in the collector), the same response is 610 KB and arrives in 1 second. Fetching only the deltas (`hEven`/`RefID`) was also tested and works, but for the reasons given in [ADR 0006](adr/0006-caching.md), it wasn't adopted.
 
-### نگاشت فیلدهای دیده‌بان
+### Market watch field mapping
 
-نام فیلدهای TSETMC مخفف‌اند. این نگاشت از مقایسه‌ی پاسخ دیده‌بان با `GetClosingPriceInfo` برای یک نماد به دست آمده است:
+TSETMC's field names are abbreviations. This mapping was derived by comparing the market watch response with `GetClosingPriceInfo` for one symbol:
 
-| فیلد TSETMC | ستون ما | معنا |
+| TSETMC field | Our column | Meaning |
 |---|---|---|
-| `insCode` | `ins_code` | شناسه‌ی داخلی نماد |
-| `lva` / `lvc` | `symbol` / `name` | نماد / نام کامل |
-| `insID` | `isin` | شناسه‌ی بین‌المللی (کلید اتصال به داده‌ی مرجع) |
-| `pdv` | `last_price` | آخرین قیمت معامله |
-| `pcl` | `close_price` | قیمت پایانی |
-| `pf` · `pmn` · `pmx` · `py` | `open` · `low` · `high` · `prev_close` | اولین، کمترین، بیشترین و دیروز |
-| `qtj` · `qtc` · `ztt` | `volume` · `value` · `trade_count` | حجم، ارزش (ریال) و تعداد معاملات |
-| `pMax` · `pMin` | — | سقف و کف مجاز روز (برای اعتبارسنجی) |
-| `blDs[n].pmd/qmd/zmd` | `bid_*` | سطح n خرید: قیمت، حجم، تعداد سفارش |
-| `blDs[n].pmo/qmo/zmo` | `ask_*` | سطح n فروش |
-| `hEven` | — | زمان آخرین تغییر نماد (HHMMSS) |
+| `insCode` | `ins_code` | Internal symbol identifier |
+| `lva` / `lvc` | `symbol` / `name` | Symbol / full name |
+| `insID` | `isin` | International identifier (key linking to reference data) |
+| `pdv` | `last_price` | Last traded price |
+| `pcl` | `close_price` | Closing price |
+| `pf` · `pmn` · `pmx` · `py` | `open` · `low` · `high` · `prev_close` | Open, low, high, and previous close |
+| `qtj` · `qtc` · `ztt` | `volume` · `value` · `trade_count` | Volume, value (rials), and trade count |
+| `pMax` · `pMin` | — | Day's allowed ceiling and floor (for validation) |
+| `blDs[n].pmd/qmd/zmd` | `bid_*` | Bid level n: price, volume, order count |
+| `blDs[n].pmo/qmo/zmo` | `ask_*` | Ask level n |
+| `hEven` | — | Time of last symbol update (HHMMSS) |
 
-### تشخیص «صندوق سهامی»
+### Identifying "equity funds"
 
-TSETMC صندوق‌ها را در گروه ۶۸ قرار می‌دهد، اما **اختیار معامله‌های روی صندوق** (مثل «ضهرم…» و «طاطلس…») و **تابلوهای فرعی** همان صندوق‌ها (مثل «سهامدار2») هم در همین گروه‌اند. فهرست صندوق‌ها هر روز با یک قیف چهارمرحله‌ای ساخته می‌شود. منطق کامل در [ADR 0007](adr/0007-fund-identity.md) آمده است.
+TSETMC places funds in group 68, but **options written on funds** (such as "ضهرم…" and "طاطلس…") and **secondary boards** of the same funds (such as "سهامدار2") are also in that same group. The fund list is built every day via a four-stage funnel. The full logic is in [ADR 0007](adr/0007-fund-identity.md).
 
 <figure class="diagram">
-<img src="assets/diagrams/universe.svg" alt="قیف شناسایی صندوق‌ها">
-<figcaption>شکل ۱ — قیف شناسایی صندوق‌های سهامی. سه مرحله‌ی اول فقط با داده‌ی دیده‌بان انجام می‌شوند؛ مرحله‌ی آخر یک درخواست <code>GetInstrumentInfo</code> برای هر تابلوی اصلی لازم دارد و به همین دلیل روزی یک بار اجرا و کش می‌شود.</figcaption>
+<img src="assets/diagrams/universe.svg" alt="Fund-identification funnel">
+<figcaption>Figure 1 — The identification funnel for equity funds. The first three stages run using only market-watch data; the last stage needs a <code>GetInstrumentInfo</code> request per primary board, and for that reason runs once a day and is cached.</figcaption>
 </figure>
 
-نمونه‌ی واقعی از پنج صندوق ضبط‌شده:
+A real example from five recorded funds:
 
-| نماد | `faraDesc` | بازار | واحد صادرشده | نتیجه |
+| Symbol | `faraDesc` | Market | Units issued | Result |
 |---|---|---|--:|---|
-| اطلس | نوع صندوق : سهامی | فرابورس | ۸۷۹٬۸۹۲٬۲۴۰ | ✅ سهامی |
-| آگاس | نوع صندوق : سهامی | فرابورس | ۱۸۰٬۵۴۵٬۰۰۰ | ✅ سهامی |
-| دارا یکم | نوع صندوق: سهامي | بورس | ۴۹۷٬۸۲۵٬۹۲۰ | ✅ سهامی (شاخصی) |
-| اهرم | نوع صندوق: سهامي اهرمي | بورس | ۳٬۵۶۴٬۳۹۹٬۹۹۹ | ✅ سهامی اهرمی |
-| یاقوت | نوع صندوق: در اوراق بهادار با درآمد ثابت | بورس | ۱۳٬۵۳۶٬۴۷۸٬۵۱۱ | ❌ درآمد ثابت |
+| اطلس | نوع صندوق : سهامی | Fara Bourse | 879,892,240 | ✅ Equity |
+| آگاس | نوع صندوق : سهامی | Fara Bourse | 180,545,000 | ✅ Equity |
+| دارا یکم | نوع صندوق: سهامي | Bourse | 497,825,920 | ✅ Equity (index) |
+| اهرم | نوع صندوق: سهامي اهرمي | Bourse | 3,564,399,999 | ✅ Leveraged equity |
+| یاقوت | نوع صندوق: در اوراق بهادار با درآمد ثابت | Bourse | 13,536,478,511 | ❌ Fixed income |
 
-!!! note "نرمال‌سازی متن فارسی"
-    TSETMC حروف عربی (`ي`، `ك`) و فارسی (`ی`، `ک`) را قاطی به کار می‌برد («سهامی» و «سهامي» در نمونه‌های بالا). همه‌ی متن‌ها پیش از مقایسه نرمال می‌شوند: یکسان‌سازی ی و ک، حذف نیم‌فاصله‌ی اضافه و فاصله‌های دو طرف.
+!!! note "Persian text normalization"
+    TSETMC mixes Arabic letters (`ي`, `ك`) and Persian letters (`ی`, `ک`) interchangeably ("سهامی" and "سهامي" in the examples above). All text is normalized before comparison: unifying ی and ک, stripping extra ZWNJ characters, and trimming surrounding whitespace.
 
-### پوشش طبقه‌بندی روی کل بازار
+### Classification coverage across the whole market
 
-پس از ضبط اطلاعات **همه‌ی ۳۳۳ تابلوی اصلی** صندوق‌ها (۲ مهر ۱۴۰۵) معلوم شد که `faraDesc` برای **۸۱ صندوق خالی** است: ۵۱ صندوق کالایی و ۳۰ صندوق دیگر، که ۲۱ تای آن‌ها سهامی یا بخشی‌اند (مثل «بانکو»، «سیمان» و «آوان»). اگر فقط به `faraDesc` تکیه می‌شد، این ۲۱ صندوق بی‌صدا از تحلیل حذف می‌شدند.
+After recording data for **all 333 primary fund boards** (2 Mehr 1405), it turned out that `faraDesc` is **empty for 81 funds**: 51 commodity funds and 30 others, 21 of which are equity or sector funds (such as "بانکو", "سیمان", and "آوان"). If classification had relied on `faraDesc` alone, these 21 funds would have been silently dropped from the analysis.
 
-راه‌حل از یک قرارداد نام‌گذاری آمد: نام رسمی صندوق‌ها با **حرف نوع** تمام می‌شود.
+The fix came from a naming convention: funds' official names end with a **type letter**.
 
-| پسوند نام | نوع | نمونه |
+| Name suffix | Type | Example |
 |:-:|---|---|
-| `-س` | سهامی | صندوق س.آوان ژرف آگاه-س |
-| `-ب` | بخشی | صندوق س.بخشي صنايع آسمان1-ب |
-| `-د` | درآمد ثابت | ص.س.درآمد ثابت آسال-د |
-| `-م` | مختلط | صندوق تضمين ا.س. گيتي دماوند-م |
+| `-س` | Equity | صندوق س.آوان ژرف آگاه-س |
+| `-ب` | Sector | صندوق س.بخشي صنايع آسمان1-ب |
+| `-د` | Fixed income | ص.س.درآمد ثابت آسال-د |
+| `-م` | Mixed | صندوق تضمين ا.س. گيتي دماوند-م |
 
-**این قاعده قبل از استفاده سنجیده شد:** روی ۲۵۲ صندوقی که هم `faraDesc` و هم نام دارند، طبقه‌بندی فقط از روی نام در **۲۵۰ مورد (۹۹٫۲٪)** با نوع رسمی یکی است. دو مورد باقی‌مانده صندوق درآمد ثابت‌اند که نامشان هیچ نشانه‌ای ندارد و به «سایر» می‌روند. پس خطای قاعده هرگز صندوقی غیرسهامی را سهامی نمی‌کند. این سنجش به‌صورت تست روی کل فهرست واقعی در مخزن هست (`test_name_convention_agrees_with_official_type`).
+**This rule was validated before being used:** across 252 funds that have both a `faraDesc` and a name, name-only classification agrees with the official type in **250 cases (99.2%)**. The two remaining cases are fixed-income funds whose names carry no hint and fall into "other". So the rule's error never turns a non-equity fund into an equity one. This check exists as a test against the full real list in the repo (`test_name_convention_agrees_with_official_type`).
 
-| نوع | تعداد |
+| Type | Count |
 |---|--:|
-| سهامی | ۸۰ |
-| بخشی | ۶۲ |
-| اهرمی | ۹ |
-| شاخصی | ۸ |
-| **جمع خانواده‌ی سهامی (جمع‌آوری می‌شود)** | **۱۵۹** |
-| درآمد ثابت | ۹۴ |
-| کالایی | ۵۲ |
-| مختلط | ۹ |
-| سایر (املاک، جسورانه، خصوصی و…) | ۱۹ |
+| Equity | 80 |
+| Sector | 62 |
+| Leveraged | 9 |
+| Index | 8 |
+| **Total equity family (collected)** | **159** |
+| Fixed income | 94 |
+| Commodity | 52 |
+| Mixed | 9 |
+| Other (real estate, venture, private, etc.) | 19 |
 
-## فیپیران: کنار گذاشته شد
+## Fipiran: dropped
 
-در طرح اولیه، اطلاعات پایه‌ی صندوق (نوع، مدیر، ترکیب دارایی) قرار بود از `fund.fipiran.ir` بیاید. هنگام ضبط، نام این دامنه **resolve نشد**. هم‌زمان معلوم شد TSETMC نوع صندوق و تعداد واحد را خودش می‌دهد. نتیجه:
+In the initial design, fund base data (type, manager, asset composition) was meant to come from `fund.fipiran.ir`. During recording, this domain's name **failed to resolve**. At the same time, it turned out TSETMC itself provides fund type and unit count. The result:
 
-- ➕ یک وابستگی خارجی کمتر و یک نقطه‌ی شکست کمتر.
-- ➖ ترکیب دارایی و نام مدیر صندوق فعلاً در دسترس نیست. این در [محدودیت‌ها](#محدودیتها) ثبت شده است. کلاینت فیپیران که در روز ۱ نوشته شده بود در روز ۶ حذف شد، چون کدِ استفاده‌نشده فقط هزینه‌ی نگه‌داری دارد. اگر لازم شد، از تاریخچه‌ی git قابل بازیابی است.
+- ➕ One fewer external dependency and one fewer point of failure.
+- ➖ Asset composition and the fund manager's name are currently unavailable. This is recorded under [Limitations](#limitations). The Fipiran client, written on day 1, was removed on day 6, since unused code only costs maintenance. It can be recovered from git history if needed.
 
-## داده‌ی ارائه‌شده در برابر داده‌ی پردازش‌شده
+## Provided data vs. processed data
 
-=== "ارائه‌شده توسط TSETMC"
+=== "Provided by TSETMC"
 
-    | داده | endpoint | مرحله‌ی اضافه شدن | جدول |
+    | Data | endpoint | Stage added | Table |
     |---|---|---|---|
-    | قیمت‌ها (آخرین، پایانی، اولین، کمترین، بیشترین، دیروز) | دیده‌بان | چرخه‌ی دقیقه‌ای | `fund_ticks` |
-    | حجم، ارزش، تعداد معاملات | دیده‌بان | چرخه‌ی دقیقه‌ای | `fund_ticks` |
-    | سطح اول خرید و فروش | دیده‌بان | چرخه‌ی دقیقه‌ای | `fund_ticks` |
-    | حجم و تعداد خرید/فروش حقیقی و حقوقی | ClientTypeAll | چرخه‌ی دقیقه‌ای | `fund_ticks` |
-    | NAV ابطال و صدور و زمان محاسبه‌ی آن | ETF | چرخه‌ی دقیقه‌ای | `fund_ticks` |
-    | نوع صندوق، بازار، ISIN، تعداد واحد | InstrumentInfo | همگام‌سازی روزانه | `funds` · `fund_daily` |
-    | ارزش ریالی حقیقی/حقوقی روزانه | ClientTypeHistory | پایان روز + backfill | `fund_daily` |
-    | تاریخچه‌ی قیمت روزانه | ClosingPriceDailyList | backfill اولیه + روزانه | `fund_daily` |
+    | Prices (last, close, open, low, high, previous) | Market watch | Minute cycle | `fund_ticks` |
+    | Volume, value, trade count | Market watch | Minute cycle | `fund_ticks` |
+    | First bid/ask level | Market watch | Minute cycle | `fund_ticks` |
+    | Retail/institutional buy/sell volume and count | ClientTypeAll | Minute cycle | `fund_ticks` |
+    | Redemption/issuance NAV and its calculation time | ETF | Minute cycle | `fund_ticks` |
+    | Fund type, market, ISIN, unit count | InstrumentInfo | Daily sync | `funds` · `fund_daily` |
+    | Daily retail/institutional rial value | ClientTypeHistory | End of day + backfill | `fund_daily` |
+    | Daily price history | ClosingPriceDailyList | Initial backfill + daily | `fund_daily` |
 
-=== "پردازش‌شده توسط ما"
+=== "Processed by us"
 
-    | داده | فرمول / روش | مرحله | جدول |
+    | Data | Formula / method | Stage | Table |
     |---|---|---|---|
-    | **طبقه‌بندی صندوق** | ISIN + `faraDesc` نرمال‌شده ← سهامی / اهرمی / شاخصی / بخشی | همگام‌سازی روزانه | `funds` |
-    | **خالص دارایی (AUM)** | NAV ابطال × تعداد واحد صادرشده | چرخه‌ی دقیقه‌ای | view |
-    | **حباب** | (قیمت ÷ NAV ابطال) − ۱ | چرخه‌ی دقیقه‌ای | view |
-    | **ارزش خرید/فروش حقیقی درون‌روز** | حجم حقیقی × میانگین موزون قیمت (ارزش ÷ حجم) — تخمین، در پایان روز با مقدار رسمی جایگزین می‌شود | چرخه‌ی دقیقه‌ای | `fund_ticks` |
-    | **ورود پول حقیقی** | ارزش خرید حقیقی − ارزش فروش حقیقی | view تجمیعی | MV |
-    | **قدرت خریدار حقیقی** | سرانه‌ی خرید ÷ سرانه‌ی فروش | view تجمیعی | MV |
-    | **بازده ۱ روز / ۱ هفته / ۱ ماه / از ابتدای سال** | بر پایه‌ی NAV (بازده دارایی) و قیمت (بازده معامله‌گر) | view روزانه | MV |
-    | **گردش معاملات** | ارزش معاملات ÷ خالص دارایی | view روزانه | MV |
-    | **سهم از بازار صندوق‌های سهامی** | AUM ÷ مجموع AUM | view روزانه | MV |
-    | **تازگی NAV** | اختلاف زمان فعلی و زمان محاسبه‌ی NAV | اعتبارسنجی | `data_quality_log` |
-    | **پرچم‌های کیفیت** | قواعد سند کیفیت داده | اعتبارسنجی | `fund_ticks.quality_flags` |
+    | **Fund classification** | ISIN + normalized `faraDesc` ← equity / leveraged / index / sector | Daily sync | `funds` |
+    | **Net asset value (AUM)** | Redemption NAV × units issued | Minute cycle | view |
+    | **Premium/discount** | (price ÷ redemption NAV) − 1 | Minute cycle | view |
+    | **Intraday retail buy/sell value** | Retail volume × volume-weighted average price (value ÷ volume) — an estimate, replaced with the official figure at end of day | Minute cycle | `fund_ticks` |
+    | **Retail money flow** | Retail buy value − retail sell value | Aggregate view | MV |
+    | **Retail buyer power** | Per-capita buy ÷ per-capita sell | Aggregate view | MV |
+    | **1-day / 1-week / 1-month / YTD return** | Based on NAV (asset return) and price (trader return) | Daily view | MV |
+    | **Turnover** | Trade value ÷ net asset value | Daily view | MV |
+    | **Share of the equity-fund market** | AUM ÷ total AUM | Daily view | MV |
+    | **NAV freshness** | Difference between current time and NAV calculation time | Validation | `data_quality_log` |
+    | **Quality flags** | Rules from the data-quality doc | Validation | `fund_ticks.quality_flags` |
 
-## یک روز معاملاتی: کدام داده، چه زمانی
+## A trading day: what data, when
 
-| زمان (تهران) | مرحله | چه چیزی اضافه می‌شود | جدول | وضعیت |
+| Time (Tehran) | Stage | What's added | Table | Status |
 |---|---|---|---|:-:|
-| پیش از ۰۹:۰۰ | همگام‌سازی روزانه | فهرست صندوق‌ها، نوع، بازار، تعداد واحد | `funds` · `fund_daily` | <span class="pill done">روز ۲</span> |
-| ۰۹:۰۰ تا ۱۲:۳۰، هر دقیقه | چرخه‌ی دریافت | پاسخ خام همه‌ی درخواست‌ها | `raw_snapshots` | <span class="pill done">روز ۱</span> |
-| | | قیمت، معاملات، NAV، حقیقی/حقوقی، سفارش‌ها | `fund_ticks` | <span class="pill done">روز ۲</span> |
-| | | شاخص کل و وضعیت بازار | `market_ticks` | <span class="pill done">روز ۲</span> |
-| | اعتبارسنجی | پرچم‌ها و گزارش کیفیت، اصلاح داده | `fund_ticks` · `data_quality_log` | <span class="pill done">روز ۳</span> |
-| هنگام درج | Materialized View | وضعیت پایانی هر روز (قیمت، ارزش، NAV، ورود پول) | `fund_eod` | <span class="pill done">روز ۴</span> |
-| هنگام درخواست | لایه‌ی تحلیل (API) | حباب، خالص دارایی، ورود پول، قدرت خریدار، گردش، بازده‌ها | — (محاسبه در `analytics/`، کش در Redis) | <span class="pill done">روز ۴</span> |
-| ۳۰ دقیقه پس از بسته شدن | تکمیل پایان روز | ارزش رسمی حقیقی/حقوقی، قیمت پایانی رسمی | `fund_history_daily` | <span class="pill done">روز ۴</span> |
-| پس از سومین چرخه‌ی امروز (یا پس از بسته شدن) | بازسازی دقیقه‌های جاافتاده | قیمت، حجم، ارزش و تعداد معاملات پیش از روشن شدن collector، از ریز معاملات و فقط اگر با تیک‌های زنده بخواند ([ADR 0012](adr/0012-intraday-backfill.md)) | `fund_ticks_backfill` · `intraday_backfill_log` | <span class="pill done">پس از روز ۷</span> |
-| راه‌اندازی خارج از ساعات بازار | bootstrap | تاریخچه‌ی ۴۰۰ روزه (یا فقط روزهای جاافتاده) و **عکس پایانی** آخرین جلسه اگر داده‌ی دقیقه‌ای ندارد | `fund_history_daily` · `fund_ticks` | <span class="pill done">روز ۵</span> |
-| راه‌اندازی خارج از ساعات بازار | bootstrap | داده‌ی دقیقه‌ای ۵ روز معاملاتی اخیری که collector اصلاً روشن نبوده، از تاریخچه‌ی قیمت، بررسی‌شده با رقم رسمی پایان‌روز ([ADR 0013](adr/0013-session-backfill.md)) | `fund_ticks_backfill` · `intraday_backfill_log` | <span class="pill done">پس از روز ۷</span> |
+| Before 09:00 | Daily sync | Fund list, type, market, unit count | `funds` · `fund_daily` | <span class="pill done">Day 2</span> |
+| 09:00–12:30, every minute | Ingestion cycle | Raw response of all requests | `raw_snapshots` | <span class="pill done">Day 1</span> |
+| | | Price, trades, NAV, retail/institutional, order book | `fund_ticks` | <span class="pill done">Day 2</span> |
+| | | Overall index and market status | `market_ticks` | <span class="pill done">Day 2</span> |
+| | Validation | Flags and quality report, data correction | `fund_ticks` · `data_quality_log` | <span class="pill done">Day 3</span> |
+| On insert | Materialized View | Each day's closing state (price, value, NAV, money flow) | `fund_eod` | <span class="pill done">Day 4</span> |
+| On request | Analytics layer (API) | Premium/discount, net asset value, money flow, buyer power, turnover, returns | — (computed in `analytics/`, cached in Redis) | <span class="pill done">Day 4</span> |
+| 30 minutes after close | End-of-day completion | Official retail/institutional value, official closing price | `fund_history_daily` | <span class="pill done">Day 4</span> |
+| After today's third cycle (or after close) | Backfilling missed minutes | Price, volume, value, and trade count before the collector was turned on, from trade-by-trade data and only when it's consistent with live ticks ([ADR 0012](adr/0012-intraday-backfill.md)) | `fund_ticks_backfill` · `intraday_backfill_log` | <span class="pill done">Post-day 7</span> |
+| Startup outside market hours | bootstrap | 400-day history (or just the missing days), and a **closing snapshot** of the last session if it has no minute-level data | `fund_history_daily` · `fund_ticks` | <span class="pill done">Day 5</span> |
+| Startup outside market hours | bootstrap | Minute-level data for the last 5 trading days during which the collector was never on, from price history, checked against the official end-of-day figure ([ADR 0013](adr/0013-session-backfill.md)) | `fund_ticks_backfill` · `intraday_backfill_log` | <span class="pill done">Post-day 7</span> |
 
-!!! success "حل‌شده در روز ۴: حباب صندوق‌های اهرمی"
-    در نمونه‌ی ضبط‌شده، قیمت «اهرم» ۱۸٪ و «دارا یکم» ۳۴٪ **زیر** NAV ابطال بود. بررسی همه‌ی صندوق‌ها نشان داد تخفیف «دارا یکم» واقعی است، اما در صندوق‌های اهرمی NAV منتشرشده با ارزش واحد عادی قابل معامله برابر نیست. حباب این صندوق‌ها محاسبه نمی‌شود. جزئیات در [منطق مالی](05-financial-logic.md#یافته-nav-صندوقهای-اهرمی-قابل-مقایسه-با-قیمت-نیست).
+!!! success "Resolved on day 4: leveraged-fund premium"
+    In the recorded sample, "اهرم"'s price was 18% and "دارا یکم"'s was 34% **below** the redemption NAV. Checking all funds showed "دارا یکم"'s discount is real, but for leveraged funds the published NAV isn't comparable to the tradable unit's normal value. The premium/discount for these funds isn't computed. Details in [Financial Logic](05-financial-logic.md#finding-leveraged-fund-nav-isnt-comparable-to-price).
 
-## محدودیت‌ها
+## Limitations
 
-- ترکیب دارایی صندوق (سهام، اوراق، نقد) و نام مدیر در TSETMC وجود ندارد.
-- `ClientTypeAll` ارزش ریالی ندارد. ارزش درون‌روز تخمین زده و در پایان روز با مقدار رسمی `ClientTypeHistory` جایگزین می‌شود. هر دو نسخه ذخیره می‌شوند.
-### ریز معاملات روز جاری: اندازه‌گیری واقعی
+- Fund asset composition (equities, bonds, cash) and manager name don't exist in TSETMC.
+- `ClientTypeAll` has no rial value. The intraday value is estimated and replaced with the official `ClientTypeHistory` figure at end of day. Both versions are stored.
+### Today's trade-by-trade data: real-world measurement
 
-اندازه‌گیری روز ۱ (`Trade/GetTrade`: تا ۲۲ مگابایت و ۱۱۰ ثانیه) روی چند نماد و **بدون** `Accept-Encoding: gzip` بود؛ همان اشتباهی که زمان دیده‌بان را ۱۵ ثانیه نشان داده بود. `scripts/probe_backfill.py` آن را درست تکرار کرد: ۴۰ صندوق (۱۰ پرمعامله‌ترین و ۳۰ صندوق در سراسر بازه‌ی تعداد معامله)، با gzip، ۸ درخواست هم‌زمان، ساعت ۱۲:۱۷ روز ۴ مهر ۱۴۰۵ (نزدیک پایان جلسه، یعنی بیشترین حجم پاسخ):
+The day-1 measurement (`Trade/GetTrade`: up to 22 MB and 110 s) was on a handful of symbols and **without** `Accept-Encoding: gzip` — the same mistake that had shown 15 seconds for the market watch. `scripts/probe_backfill.py` redid it correctly: 40 funds (the 10 most-traded plus 30 spanning the full range of trade counts), with gzip, 8 concurrent requests, at 12:17 on 4 Mehr 1405 (near the end of the session, i.e. peak response size):
 
-| endpoint | نتیجه | خطا | برون‌یابی برای ۳۳۳ صندوق |
+| endpoint | Result | Errors | Extrapolated for 333 funds |
 |---|---|:-:|---|
-| `Trade/GetTrade/{ins}` | همه‌ی معاملات امروز (زمان، قیمت، حجم، شماره) | ۰ از ۴۰ | **۲٫۳ MB**، حدود **۱۰ ثانیه** با ۸ درخواست هم‌زمان (۱٫۲ دقیقه پشت سر هم) |
-| `Trade/GetTradeHistory/{ins}/{date}/false` | برای امروز: ۵۰۲ یا لیست خالی | ۲۷ از ۴۰ | قابل استفاده نیست |
-| `ClosingPrice/GetClosingPriceHistory/{ins}/{date}` | برای امروز: ۵۰۲ یا لیست خالی | ۷ از ۴۰ | قابل استفاده نیست |
+| `Trade/GetTrade/{ins}` | All of today's trades (time, price, volume, sequence number) | 0 of 40 | **2.3 MB**, about **10 seconds** with 8 concurrent requests (1.2 minutes sequentially) |
+| `Trade/GetTradeHistory/{ins}/{date}/false` | For today: 502 or empty list | 27 of 40 | Not usable |
+| `ClosingPrice/GetClosingPriceHistory/{ins}/{date}` | For today: 502 or empty list | 7 of 40 | Not usable |
 
-- پرمعامله‌ترین صندوق («موج»، ۱۹٬۲۸۲ معامله) **۱۵۰ KB** فشرده (۳٫۹ MB باز) و ۷٫۳ ثانیه بود؛ میانه ۳ KB و ۰٫۲ ثانیه. عدد روز ۱ حدود صد برابر بدبینانه بود.
-- زیر بار ۸ درخواست هم‌زمان، TSETMC کندتر نشد (ضریب ۱٫۰۱).
-- **هشدار:** در ۶ صندوق از ۴۰ (مثل «عیار»، «هیرا»، «جام طلا») زمان همه‌ی معاملات بعد از ۱۲:۰۰ ثبت شده است، با اینکه جلسه از ۹:۰۰ باز بود («هیرا»: ۱۴٬۴۴۳ معامله در ۳۴ ثانیه). زمان معامله برای این صندوق‌ها قابل اعتماد نیست و پیش از ساختن داده‌ی دقیقه‌ای از آن باید با داده‌ی زنده‌ی خودمان مقایسه شود.
-- این endpoint فقط قیمت، حجم و زمان می‌دهد. **حقیقی/حقوقی، NAV و سفارش‌ها در آن نیست**، پس منحنی ورود پول حقیقی و NAV پیش از روشن شدن collector از این راه بازسازی نمی‌شوند.
+- The most-traded fund ("موج", 19,282 trades) was **150 KB** compressed (3.9 MB uncompressed) and took 7.3 seconds; the median was 3 KB and 0.2 seconds. The day-1 number had been off by roughly a factor of 100, pessimistically.
+- Under a load of 8 concurrent requests, TSETMC didn't slow down (ratio 1.01).
+- **Warning:** in 6 of the 40 funds (such as "عیار", "هیرا", "جام طلا"), every trade's timestamp was recorded after 12:00, even though the session had been open since 9:00 ("هیرا": 14,443 trades in 34 seconds). Trade timing isn't reliable for these funds, and before building minute-level data from it, it must be cross-checked against our own live data.
+- This endpoint only gives price, volume, and time. **Retail/institutional data, NAV, and the order book aren't in it**, so the retail-money-flow and NAV curves for periods before the collector was on cannot be reconstructed this way.
 
-بر پایه‌ی همین اندازه‌گیری، `GetTrade` برای پر کردن دقیقه‌های جاافتاده به کار گرفته شد؛ با بررسی هر صندوق در برابر تیک‌های زنده، تا خطای زمان بالا ذخیره نشود ([ADR 0012](adr/0012-intraday-backfill.md)).
+Based on this measurement, `GetTrade` was adopted for backfilling missed minutes, checking each fund against live ticks so the timing error above doesn't get persisted ([ADR 0012](adr/0012-intraday-backfill.md)).
 
-### تاریخچه‌ی دقیقه‌ای روزهای گذشته: فرضیه درست از آب درآمد
+### Minute-level history for past days: the hypothesis held up
 
-اندازه‌گیری بالا `GetTradeHistory` و `GetClosingPriceHistory` را فقط با `{date}` = **امروز** آزموده بود و هر دو ۵۰۲ یا لیست خالی داده بودند — که به اشتباه به‌عنوان «هر دو غیرقابل‌استفاده» ثبت شده بود. نام‌شان («History») سرنخ درستی بود: این دو endpoint برای یک **روز گذشته و بسته‌شده** جواب می‌دهند، نه امروز. کاربر با VPN خاموش و یک تاریخ واقعی گذشته (۲۹ شهریور ۱۴۰۵، `20260920`) دوباره آزمود، روی ۱۵ صندوق نمونه:
+The measurement above had only tested `GetTradeHistory` and `GetClosingPriceHistory` with `{date}` = **today**, and both returned 502 or an empty list — which was mistakenly recorded as "both unusable". Their name ("History") was the right clue: these two endpoints answer for a **past, closed day**, not today. With the VPN off and a real past date (29 Shahrivar 1405, `20260920`), the user re-tested on a sample of 15 funds:
 
-| endpoint | نتیجه با تاریخ گذشته | نتیجه‌گیری |
+| endpoint | Result with a past date | Conclusion |
 |---|---|---|
-| `Trade/GetTradeHistory/{ins}/{date}/false` | ۱۲ از ۱۵ صندوق `rows: 0` با اینکه هزاران معامله داشتند (یاقوت: ۴۸٬۰۲۲ معامله ثبت‌شده، صفر ردیف برگشتی)؛ الگویی هم بین موفق/ناموفق نبود | **غیرقابل اعتماد**؛ کنار گذاشته شد |
-| `ClosingPrice/GetClosingPriceHistory/{ins}/{date}` | ۱۴ از ۱۵ صندوق ردیف واقعی (فقط هیرا خالی)؛ برون‌یابی برای ۳۳۴ صندوق: **۵٫۴ مگابایت، حدود ۷ ثانیه** موازی | **قابل استفاده** |
+| `Trade/GetTradeHistory/{ins}/{date}/false` | 12 of 15 funds returned `rows: 0` despite having thousands of recorded trades (یاقوت: 48,022 recorded trades, zero rows returned); no pattern between success/failure either | **Unreliable**; dropped |
+| `ClosingPrice/GetClosingPriceHistory/{ins}/{date}` | 14 of 15 funds returned real rows (only هیرا was empty); extrapolated for 334 funds: **5.4 MB, about 7 seconds** in parallel | **Usable** |
 
-`GetClosingPriceHistory` همان مدل `DailyPriceRow` را برمی‌گرداند (fields: `pDrCotVal`, `qTotTran5J`, `qTotCap`, `zTotTran`) که از قبل برای bootstrap ۴۰۰ روزه پارس می‌شد — همان فید روزانه، فقط با `hEven` (زمان درون‌روز) اضافه. هر ردیف خودش یک **مجموع تجمعی** است، نه یک معامله‌ی تکی، پس نیازی به جمع زدن نیست؛ فقط باید در زمان مرتب و در هر مرز دقیقه نمونه‌برداری شود.
+`GetClosingPriceHistory` returns the same `DailyPriceRow` model (fields: `pDrCotVal`, `qTotTran5J`, `qTotCap`, `zTotTran`) that was already parsed for the 400-day bootstrap — the same daily feed, just with `hEven` (intraday time) added. Each row is itself a **cumulative total**, not a single trade, so there's no need to sum anything; it just needs to be sorted by time and sampled at each minute boundary.
 
-بر پایه‌ی همین یافته، ۵ روز معاملاتی اخیر که collector اصلاً روشن نبوده اکنون در راه‌اندازی از این endpoint بازسازی می‌شوند، بررسی‌شده در برابر رقم رسمی پایان‌روز به‌جای تیک‌های زنده (که برای یک روز گذشته وجود ندارند) — همان محدودیت ADR 0012: بدون NAV، بدون حقیقی/حقوقی ([ADR 0013](adr/0013-session-backfill.md)).
+Based on this finding, the last 5 trading days during which the collector was never on are now reconstructed at startup from this endpoint, checked against the official end-of-day figure instead of live ticks (which don't exist for a past day) — the same limitation as ADR 0012: no NAV, no retail/institutional data ([ADR 0013](adr/0013-session-backfill.md)).

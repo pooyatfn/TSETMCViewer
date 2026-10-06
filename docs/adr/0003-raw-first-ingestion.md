@@ -1,24 +1,24 @@
-# ADR 0003 — ذخیره‌ی پاسخ خام پیش از پارس
+# ADR 0003 — Storing the Raw Response Before Parsing
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده</span><span>تاریخ: روز ۱</span></div>
+<div class="adr-meta"><span>Status: Accepted</span><span>Date: Day 1</span></div>
 
-!!! abstract "خلاصه"
-    API سایت TSETMC مستند نیست و داده‌ی درون‌روز را نمی‌توان دوباره گرفت. پس هر پاسخ، پیش از هر تفسیری، دست‌نخورده ذخیره می‌شود تا بعداً قابل بازپخش و حسابرسی باشد.
+!!! abstract "Summary"
+    The TSETMC site API is undocumented, and intraday data cannot be re-fetched. So every response, before any interpretation, is stored untouched so it can later be replayed and audited.
 
-## زمینه
+## Context
 
-- API سایت TSETMC مستندات رسمی و نسخه‌بندی ندارد. نام فیلدها مخفف‌اند (`pDrCotVal`، `qTotTran5J`) و ممکن است بدون اطلاع تغییر کنند.
-- داده‌ی درون‌روز **قابل بازیابی نیست**: اگر پارسر امروز ساعت ۱۰:۳۰ خطا داشته باشد، TSETMC فردا تصویر لحظه‌ی ۱۰:۳۰ را دوباره نمی‌دهد.
+- The TSETMC site API has no official, versioned documentation. Field names are abbreviations (`pDrCotVal`, `qTotTran5J`) and may change without notice.
+- Intraday data **cannot be recovered**: if the parser errors today at 10:30, TSETMC will not give back tomorrow's snapshot of that 10:30 moment.
 
-## تصمیم
+## Decision
 
-هر پاسخ HTTP، **هر چه باشد** (۲۰۰، ۴۰۴ یا بدنه‌ی غیر JSON)، همراه با `run_id`، زمان، endpoint، کد وضعیت، تأخیر و تعداد تلاش، پیش از هر پارسی در `raw_snapshots` ذخیره می‌شود. پارس، اعتبارسنجی و نوشتن داده‌ی تمیز مراحل بعدی‌اند که ورودی‌شان همین پاسخ خام است.
+Every HTTP response, **whatever it is** (200, 404, or a non-JSON body), is stored in `raw_snapshots` along with `run_id`, timestamp, endpoint, status code, latency, and attempt count, before any parsing. Parsing, validation, and writing clean data are later stages whose input is this raw response.
 
-برای این کار کلاینت‌ها `RawResponse` برمی‌گردانند، نه مدل پارس‌شده.
+For this, clients return a `RawResponse`, not a parsed model.
 
-## پیامدها
+## Consequences
 
-- ➕ **Replay:** پس از اصلاح پارسر، داده‌ی تمیز چند روز اخیر از روی خام بازسازی می‌شود.
-- ➕ **حسابرسی:** برای هر عدد در پنل می‌توان دقیقاً پاسخ منبع را نشان داد.
-- ➕ **پایش ارائه‌دهنده:** تأخیر و نرخ خطای TSETMC در طول زمان قابل تحلیل است.
-- ➖ فضای ذخیره‌سازی: با فشرده‌سازی ZSTD و TTL سی‌روزه، هزینه ناچیز است (تخمین: کمتر از ۱ گیگابایت در ماه).
+- ➕ **Replay:** once the parser is fixed, clean data for recent days can be rebuilt from the raw data.
+- ➕ **Audit:** for any number shown on the dashboard, the exact source response can be displayed.
+- ➕ **Provider monitoring:** TSETMC's latency and error rate can be analyzed over time.
+- ➖ Storage: with ZSTD compression and a 30-day TTL, the cost is negligible (estimate: under 1 GB per month).

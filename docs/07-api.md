@@ -1,29 +1,29 @@
 # API
 
-<p class="lead">پنل فقط از طریق این API داده می‌خواند. همه‌ی پاسخ‌ها JSON هستند و قرارداد کامل (OpenAPI) به‌طور خودکار در <code>/docs</code> و <code>/redoc</code> منتشر می‌شود.</p>
+<p class="lead">The panel reads data only through this API. All responses are JSON, and the full contract (OpenAPI) is published automatically at <code>/docs</code> and <code>/redoc</code>.</p>
 
-## endpointها
+## Endpoints
 
-| مسیر | پاسخ | کاربرد در پنل |
+| Path | Response | Used in panel for |
 |---|---|---|
-| `GET /api/v1/overview` | `Overview` | کارت‌های بالای صفحه: AUM، ورود پول، حباب، پهنا، شاخص کل |
-| `GET /api/v1/funds` | `FundSnapshot[]` | جدول صندوق‌ها و treemap |
-| — | `FundSnapshot.status_kind` · `status_title` · `status_at` · `under_supervision` | وضعیت نماد در TSETMC (`open` · `suspended` · `reserved` · `blocked` · `forbidden` · `unknown`) در همه‌ی پاسخ‌های صندوق؛ `Overview.not_trading` تعداد صندوق‌های غیرعادی |
-| `GET /api/v1/funds/{ins_code}?days=` | `FundDetail` | صفحه‌ی صندوق: وضعیت، بازده‌ها، تاریخچه‌ی روزانه‌ی `days` روز اخیر (تقویمی، ۵ تا ۴۰۰۰، پیش‌فرض ۱۲۰) |
-| `GET /api/v1/funds/{ins_code}/intraday` | `FundIntradayPoint[]` | نمودار درون‌روز قیمت، NAV و حباب؛ دقیقه‌های پیش از روشن شدن collector با `backfilled: true` و بدون NAV و ورود پول ([ADR 0012](adr/0012-intraday-backfill.md)) |
-| `GET /api/v1/market/flow` | `MarketFlowPoint[]` | ورود پول حقیقی تجمعی کل بازار در طول روز، کنار شاخص |
-| `GET /api/v1/flows/daily?days=60` | `DailyFlow[]` | ورود پول روزانه به تفکیک نوع صندوق |
-| `GET /api/v1/returns` | `FundReturns[]` | heatmap بازده ۱ روز تا ابتدای سال |
-| `GET /api/v1/premium/daily?days=120` | `PremiumPoint[]` | حباب بازار (میانه و وزنی) در پایان هر جلسه |
-| `GET /api/v1/premium/intraday` | `PremiumPoint[]` | حباب بازار دقیقه به دقیقه در طول جلسه |
-| `GET /api/v1/calendar?year=1405` | `CalendarDay[]` | تعطیلات رسمی، تعطیلی‌های اعلام‌شده و مشاهده‌شده‌ی یک سال شمسی |
-| `GET /api/v1/sessions?limit=90` | `SessionInfo[]` | فهرست جلسه‌هایی که `fund_ticks` برایشان داده دارد (نودست‌ترین اول)؛ انتخابگر جلسه در سربرگ پنل را پر می‌کند |
-| `GET /api/v1/quality` | گزارش کیفیت | نشانگر سلامت داده |
-| `GET /api/v1/stream` | `text/event-stream` | اعلام «تیک جدید» به پنل |
-| `GET /health` · `GET /api/v1/health` · `GET /api/v1/pipeline/runs` | — | سلامت API و تازگی داده‌ی collector (نوار «داده‌ی قدیمی» در پنل) |
-| `GET /metrics` | متن Prometheus | فقط برای Prometheus؛ nginx آن را به بیرون نمی‌دهد ([پایش](11-monitoring.md)) |
+| `GET /api/v1/overview` | `Overview` | Top-of-page cards: AUM, money inflow, premium, breadth, total index |
+| `GET /api/v1/funds` | `FundSnapshot[]` | Fund table and treemap |
+| — | `FundSnapshot.status_kind` · `status_title` · `status_at` · `under_supervision` | Symbol status on TSETMC (`open` · `suspended` · `reserved` · `blocked` · `forbidden` · `unknown`) in every fund response; `Overview.not_trading` counts the funds in an abnormal state |
+| `GET /api/v1/funds/{ins_code}?days=` | `FundDetail` | Fund page: status, returns, daily history for the last `days` days (calendar days, 5 to 4000, default 120) |
+| `GET /api/v1/funds/{ins_code}/intraday` | `FundIntradayPoint[]` | Intraday chart of price, NAV and premium; minutes before the collector started are marked `backfilled: true` with no NAV or money flow ([ADR 0012](adr/0012-intraday-backfill.md)) |
+| `GET /api/v1/market/flow` | `MarketFlowPoint[]` | Cumulative retail money inflow across the whole market through the day, alongside the index |
+| `GET /api/v1/flows/daily?days=60` | `DailyFlow[]` | Daily money inflow broken down by fund type |
+| `GET /api/v1/returns` | `FundReturns[]` | Heatmap of returns from 1 day to year-to-date |
+| `GET /api/v1/premium/daily?days=120` | `PremiumPoint[]` | Market premium (median and weighted) at the close of each session |
+| `GET /api/v1/premium/intraday` | `PremiumPoint[]` | Minute-by-minute market premium through the session |
+| `GET /api/v1/calendar?year=1405` | `CalendarDay[]` | Official holidays, and announced and observed closures for a Jalali year |
+| `GET /api/v1/sessions?limit=90` | `SessionInfo[]` | List of sessions `fund_ticks` has data for (most recent first); populates the session selector in the panel header |
+| `GET /api/v1/quality` | Quality report | Data health indicator |
+| `GET /api/v1/stream` | `text/event-stream` | Notifies the panel of a new tick |
+| `GET /health` · `GET /api/v1/health` · `GET /api/v1/pipeline/runs` | — | API health and collector data freshness (the "stale data" banner in the panel) |
+| `GET /metrics` | Prometheus text format | For Prometheus only; nginx does not expose it externally ([Monitoring](11-monitoring.md)) |
 
-همه‌ی endpointهای تحلیلی پارامتر اختیاری `?date=YYYY-MM-DD` دارند. **پیش‌فرض آخرین جلسه‌ی معاملاتی‌ای است که داده دارد**، نه تاریخ امروز. پنل در روز تعطیل خالی نمی‌ماند و جلسه‌ی قبل را نشان می‌دهد، با برچسب `is_live: false` و تاریخ شمسی `session_date_fa`. انتخابگر جلسه در سربرگ پنل همین پارامتر را ست می‌کند؛ گزینه‌هایش از `GET /api/v1/sessions` می‌آید و «فقط پایانی» را کنار جلسه‌هایی می‌گذارد که فقط عکس پایان جلسه دارند، نه سری دقیقه‌ای (`has_intraday: false`).
+All analytical endpoints take an optional `?date=YYYY-MM-DD` parameter. **The default is the most recent trading session with data**, not today's date. The panel never goes empty on a holiday — it shows the previous session, labeled `is_live: false` with the Jalali date in `session_date_fa`. The session selector in the panel header sets this same parameter; its options come from `GET /api/v1/sessions`, marking "closing only" next to sessions that only have an end-of-day snapshot rather than a minute-level series (`has_intraday: false`).
 
 ```console
 $ curl -s localhost:8000/api/v1/overview | jq
@@ -42,46 +42,46 @@ $ curl -s localhost:8000/api/v1/overview | jq
 }
 ```
 
-## قراردادها
+## Conventions
 
 <div class="grid cards two" markdown>
 
--   :material-currency-usd-off: __مبلغ‌ها ریال و عدد صحیح__
+-   :material-currency-usd-off: __Amounts are Rial, integer__
 
     ---
 
-    تبدیل به تومان یا «همت» فقط در لایه‌ی نمایش انجام می‌شود. API هیچ‌وقت عدد گردشده برنمی‌گرداند.
+    Conversion to toman or "T toman" happens only in the presentation layer. The API never returns a rounded number.
 
--   :material-percent-outline: __نسبت‌ها کسر ساده__
-
-    ---
-
-    `0.012` یعنی ۱٫۲٪. نسبتی که معنی ندارد `null` است، نه صفر (مثل حباب صندوق اهرمی یا گردش صندوقی که AUM ندارد).
-
--   :material-clock-time-four-outline: __زمان‌ها با منطقه‌ی زمانی__
+-   :material-percent-outline: __Ratios are plain fractions__
 
     ---
 
-    ISO 8601 با `+03:30`. تاریخ‌ها میلادی‌اند و کنار هر کدام نسخه‌ی شمسی (`*_fa`) آمده است.
+    `0.012` means 1.2%. A ratio that has no meaning is `null`, not zero (e.g. the premium of a leveraged fund, or turnover for a fund with no AUM).
 
--   :material-flag-outline: __پرچم‌های کیفیت با نام__
+-   :material-clock-time-four-outline: __Times carry a timezone__
 
     ---
 
-    `quality_flags: ["NAV_STALE", "FLOW_VALUE_ESTIMATED"]`، نه bitmask. پنل با همین نام‌ها داده‌ی مشکوک را کم‌رنگ نشان می‌دهد.
+    ISO 8601 with `+03:30`. Dates are Gregorian, each with a Jalali counterpart (`*_fa`) alongside it.
+
+-   :material-flag-outline: __Quality flags by name__
+
+    ---
+
+    `quality_flags: ["NAV_STALE", "FLOW_VALUE_ESTIMATED"]`, not a bitmask. The panel uses these same names to dim suspect data.
 
 </div>
 
-## کش و هدرها
+## Caching and Headers
 
-هر پاسخ تحلیلی از مسیر `cached_json` می‌گذرد ([ADR 0006](adr/0006-caching.md)):
+Every analytical response goes through the `cached_json` path ([ADR 0006](adr/0006-caching.md)):
 
-| هدر | مقدار | معنا |
+| Header | Value | Meaning |
 |---|---|---|
-| `X-Tick` | `2026-09-26T10:41:00+03:30` | پاسخ مربوط به کدام تیک است |
-| `X-Cache` | `hit` / `miss` | از Redis آمد یا از ClickHouse |
-| `ETag` | `W/"…"` | از (مسیر، پارامترها، تیک) ساخته می‌شود |
-| `Cache-Control` | `private, max-age=N` | N = ثانیه‌های مانده تا تیک بعد |
+| `X-Tick` | `2026-09-26T10:41:00+03:30` | Which tick this response corresponds to |
+| `X-Cache` | `hit` / `miss` | Served from Redis or from ClickHouse |
+| `ETag` | `W/"…"` | Built from (path, parameters, tick) |
+| `Cache-Control` | `private, max-age=N` | N = seconds remaining until the next tick |
 
 ```console
 $ curl -sI localhost:8000/api/v1/funds | grep -iE 'x-cache|etag'
@@ -91,44 +91,44 @@ $ curl -sI localhost:8000/api/v1/funds -H 'If-None-Match: W/"3f5a…"' | head -1
 HTTP/1.1 304 Not Modified
 ```
 
-اگر Redis در دسترس نباشد، API بدون خطا مستقیماً از ClickHouse پاسخ می‌دهد (`X-Tick: none`).
+If Redis is unavailable, the API serves straight from ClickHouse without erroring (`X-Tick: none`).
 
-## رویدادهای زنده (SSE)
+## Live Events (SSE)
 
 ```javascript
 const events = new EventSource("/api/v1/stream");
 events.addEventListener("tick", (e) => {
   const { tick, funds, status } = JSON.parse(e.data);
-  refetchDashboard();          // پاسخ‌ها در این لحظه تازه‌اند و کش سمت سرور هم آماده است
+  refetchDashboard();          // responses are fresh at this point, and the server-side cache is ready too
 });
 ```
 
-| فریم | زمان |
+| Frame | Timing |
 |---|---|
-| `event: hello` | هنگام اتصال، با آخرین تیک |
-| `event: tick` | پس از commit شدن داده‌ی هر دقیقه |
-| `: keep-alive` | هر ۱۵ ثانیه، تا پراکسی‌ها اتصال را نبندند |
+| `event: hello` | On connect, with the latest tick |
+| `event: tick` | After each minute's data is committed |
+| `: keep-alive` | Every 15 seconds, so proxies don't close the connection |
 
-**چرا SSE و نه WebSocket؟** جریان داده یک‌طرفه است (سرور به مرورگر). SSE روی HTTP معمولی کار می‌کند، اتصال دوباره را خود مرورگر انجام می‌دهد و در FastAPI فقط یک `StreamingResponse` است.
+**Why SSE instead of WebSocket?** The data flow is one-directional (server to browser). SSE runs over plain HTTP, the browser itself handles reconnection, and in FastAPI it's just a `StreamingResponse`.
 
-## کارایی
+## Performance
 
-روی داده‌ی واقعی (۱۵۹ صندوق، ۴۹ هزار ردیف تاریخچه)، **بدون کش**:
+On real data (159 funds, 49K history rows), **without caching**:
 
-| endpoint | اندازه | زمان |
+| Endpoint | Size | Time |
 |---|--:|--:|
-| `/overview` | ۰٫۴ KB | ۷۸ ms |
-| `/funds` | ۱۰۸ KB (با gzip ۲۵ KB) | ۳۲ ms |
-| `/returns` | ۲۹ KB | ۶۸ ms |
-| `/flows/daily?days=60` | ۲۴ KB | ۵۵ ms |
-| `/funds/{ins}` | ۱۱ KB | ۸۵ ms |
+| `/overview` | 0.4 KB | 78 ms |
+| `/funds` | 108 KB (25 KB with gzip) | 32 ms |
+| `/returns` | 29 KB | 68 ms |
+| `/flows/daily?days=60` | 24 KB | 55 ms |
+| `/funds/{ins}` | 11 KB | 85 ms |
 
-## بازبینی روز ۵
+## Day 5 Revision
 
-- `index_change` در `overview` از **امتیاز** (همان چیزی که TSETMC می‌دهد) به **کسر** تغییر داده شد (۰٫۰۱۲۵ یعنی +۱٫۲۵٪)، تا با قرارداد «نسبت‌ها کسر ساده» یکی باشد. این ناسازگاری وقتی پیدا شد که پنل عدد را برای اولین بار نمایش داد: کاشی شاخص «+۸٬۹۶۳٬۷۹۱٪» نشان می‌داد. تست `test_overview` حالا این تبدیل را بررسی می‌کند.
+- `index_change` in `overview` was changed from a **point value** (what TSETMC itself gives) to a **fraction** (0.0125 meaning +1.25%), to match the "ratios are plain fractions" convention. This inconsistency was caught the first time the panel displayed the number: the index tile showed "+8,963,791%". The `test_overview` test now checks this conversion.
 
-## بازبینی پس از روز ۷
+## Post-Day-7 Revision
 
-- `overview` دو فیلد تازه دارد: `weighted_premium` (حباب وزنی بر اساس خالص دارایی، [منطق مالی](05-financial-logic.md#حباب-میانه-یا-وزنی)) و `holiday_today` (نام تعطیلی امروز، رسمی یا مشاهده‌شده).
-- سه endpoint تازه: `premium/daily`، `premium/intraday` و `calendar`. همه مثل بقیه با تیک کش می‌شوند.
-- API با چند worker اجرا می‌شود. کش بین پروسه‌ها یک بار محاسبه می‌شود ([ADR 0010](adr/0010-high-availability.md)).
+- `overview` has two new fields: `weighted_premium` (AUM-weighted market premium, [Financial Logic](05-financial-logic.md#premium-median-or-weighted)) and `holiday_today` (today's holiday name, official or observed).
+- Three new endpoints: `premium/daily`, `premium/intraday` and `calendar`. All are cached by tick like the rest.
+- The API runs with multiple workers. The cache is computed once across processes ([ADR 0010](adr/0010-high-availability.md)).

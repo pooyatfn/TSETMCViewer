@@ -1,114 +1,114 @@
-# ADR 0006 — راهبرد کش
+# ADR 0006 — Caching Strategy
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده، بازبینی‌شده در روز ۴</span><span>تاریخ: روز ۱</span><span>پیاده‌سازی: روز ۲ و روز ۴</span></div>
+<div class="adr-meta"><span>Status: Accepted, revised on Day 4</span><span>Date: Day 1</span><span>Implementation: Day 2 and Day 4</span></div>
 
-!!! abstract "خلاصه"
-    داده فقط **یک بار در دقیقه** عوض می‌شود. پس هر پاسخی را می‌توان تا تیک بعدی کش کرد، به شرط اینکه باطل شدن کش به **رویداد تیک** گره بخورد، نه به یک TTL حدسی. کش در شش لایه انجام می‌شود، دو لایه در collector و چهار لایه در مسیر خواندن.
+!!! abstract "Summary"
+    Data only changes **once a minute**. So any response can be cached until the next tick, provided invalidation is tied to the **tick event**, not a guessed TTL. Caching happens across six layers, two in the collector and four in the read path.
 
-## زمینه
+## Context
 
-دو فشار مستقل، کش را لازم می‌کنند:
+Two independent pressures make caching necessary:
 
 <div class="grid cards two" markdown>
 
--   :material-download-network-outline: __سمت منبع: TSETMC کند است__
+-   :material-download-network-outline: __Source side: TSETMC is slow__
 
     ---
 
-    دیده‌بان بازار ۳٫۵ مگابایت داده برای ۳۸۰۰ نماد است، در حالی که بیشتر نمادها در یک دقیقه تغییری نمی‌کنند. اطلاعات نماد و نوع صندوق در طول روز ثابت‌اند ولی بی‌دلیل دوباره خوانده می‌شوند. هر درخواست اضافه هم احتمال مسدود شدن را بالا می‌برد.
+    The market watch is 3.5 MB of data for 3,800 symbols, while most symbols don't change within a minute. Symbol info and fund type are fixed throughout the day but get re-read for no reason. Every extra request also raises the risk of being blocked.
 
--   :material-monitor-dashboard: __سمت پنل: چند کاربر، یک داده__
+-   :material-monitor-dashboard: __Panel side: many users, one piece of data__
 
     ---
 
-    ده کاربر که پنل را باز کرده‌اند، هر کدام هر چند ثانیه همان کوئری‌های تجمیعی را می‌فرستند، در حالی که جواب تا دقیقه‌ی بعد عوض نمی‌شود.
+    Ten users with the panel open each send the same aggregate queries every few seconds, while the answer doesn't change until the next minute.
 
 </div>
 
-**ویژگی کلیدی دامنه:** داده **گسسته و قابل پیش‌بینی** عوض می‌شود. تا تیک N+1، پاسخ هر کوئری برای تیک N قطعی و تغییرناپذیر است. این باطل‌سازی کش را، که معمولاً سخت‌ترین بخش کش است، ساده می‌کند.
+**Key domain property:** data changes **discretely and predictably**. Until tick N+1, the response for any query about tick N is final and immutable. This makes cache invalidation — usually the hardest part of caching — simple.
 
-## تصمیم
+## Decision
 
 <figure class="diagram">
-<img src="../assets/diagrams/caching.svg" alt="لایه‌های کش">
-<figcaption>شش لایه‌ی کش. خط نارنجی مسیر رویداد «تیک N» است که کش‌ها را به‌صورت ضمنی باطل می‌کند.</figcaption>
+<img src="../assets/diagrams/caching.svg" alt="Caching layers">
+<figcaption>Six caching layers. The orange line is the "tick N" event path that implicitly invalidates caches.</figcaption>
 </figure>
 
-| # | لایه | چه چیزی | کلید / باطل‌سازی | صرفه‌جویی |
+| # | Layer | What | Key / invalidation | Savings |
 |:-:|---|---|---|---|
-| ① | کش مرجع در حافظه‌ی collector | فهرست صندوق‌ها، اطلاعات نماد | یک بار در روز، پیش از بازگشایی | حدود ۱۲۰ درخواست در دقیقه |
-| ② | ~~وضعیت آخرین دیده‌بان~~ | ~~دریافت فقط تغییرات~~ | **پس از اندازه‌گیری رد شد** (پایین را ببینید) | — |
-|  | NAV شرطی | زمان محاسبه‌ی NAV هر صندوق | اگر `hEven` تغییر نکرده، مقدار قبلی معتبر است | ذخیره‌ی تکراری کمتر |
-| ③ | Materialized Views | تجمیع روزانه و درون‌روز | هنگام درج به‌روز می‌شود | کوئری روی هزاران ردیف، نه میلیون‌ها |
-| ④ | Redis (cache-aside) | پاسخ JSON هر endpoint | `api:{route}:{hash(params)}:{tick}` با TTL ۱۲۰ ثانیه | ClickHouse در هر تیک یک بار کوئری می‌خورد، نه به‌ازای هر کاربر |
-| ⑤ | کش HTTP | پاسخ در مرورگر یا پراکسی | `ETag = tick`، `max-age` = ثانیه‌های مانده تا تیک بعد | پاسخ 304 بدون بدنه |
-| ⑥ | push با SSE | اعلام تیک جدید به پنل | کانال pub/sub در Redis | حذف polling |
+| ① | In-memory reference cache in the collector | Fund list, symbol info | Once a day, before market open | About 120 requests per minute |
+| ② | ~~Last-watch state~~ | ~~Fetch only deltas~~ | **Rejected after measurement** (see below) | — |
+|  | Conditional NAV | NAV computation time per fund | If `hEven` hasn't changed, the previous value is still valid | Fewer duplicate stores |
+| ③ | Materialized Views | Daily and intraday aggregates | Updated on insert | Queries over thousands of rows, not millions |
+| ④ | Redis (cache-aside) | JSON response per endpoint | `api:{route}:{hash(params)}:{tick}` with a 120-second TTL | ClickHouse is queried once per tick, not once per user |
+| ⑤ | HTTP cache | Response in the browser or proxy | `ETag = tick`, `max-age` = seconds remaining until next tick | 304 responses with no body |
+| ⑥ | SSE push | Announcing a new tick to the panel | Redis pub/sub channel | Eliminates polling |
 
-### چرا شماره‌ی تیک داخل کلید است؟
+### Why is the tick number inside the key?
 
-به‌جای اینکه بعد از هر نوشتن کلیدها را حذف کنیم (که خطاپذیر و دارای race condition است)، **نسخه جزئی از کلید است**. وقتی collector تیک N+1 را اعلام می‌کند، API از آن به بعد کلیدهای `…:N+1` را می‌سازد. کلیدهای قدیمی دیگر خوانده نمی‌شوند و TTL آن‌ها را پاک می‌کند. این الگو را *key-based expiration* یا *generational caching* می‌نامند.
+Rather than deleting keys after every write (which is error-prone and race-condition-prone), **the version is part of the key**. When the collector announces tick N+1, the API starts building `…:N+1` keys from that point on. Old keys are simply never read again, and their TTL cleans them up. This pattern is called *key-based expiration* or *generational caching*.
 
-```python title="الگوی cache-aside با نسخه‌ی تیک (طرح)"
+```python title="Cache-aside pattern with tick version (sketch)"
 async def cached(route: str, params: dict, compute: Callable[[], Awaitable[bytes]]) -> bytes:
-    tick = await redis.get("tsetmc:tick")  # آخرین تیک commit‌شده
+    tick = await redis.get("tsetmc:tick")  # last committed tick
     key = f"api:{route}:{stable_hash(params)}:{tick}"
     if (hit := await redis.get(key)) is not None:
         return hit
-    body = await compute()  # کوئری ClickHouse
+    body = await compute()  # ClickHouse query
     await redis.set(key, body, ex=120)
     return body
 ```
 
-!!! warning "ترتیب مهم است: اول commit، بعد اعلام تیک"
-    collector فقط **پس از** پایان موفق درج `fund_ticks` تیک را منتشر می‌کند. اگر ترتیب برعکس باشد، API ممکن است پاسخ ناقص تیک N را زیر کلید N کش کند و این پاسخ ناقص تا تیک بعد سرو شود.
+!!! warning "Order matters: commit first, then announce the tick"
+    The collector only publishes the tick **after** the `fund_ticks` insert finishes successfully. If the order were reversed, the API might cache an incomplete response for tick N under key N, and that incomplete response would be served until the next tick.
 
-## گزینه‌های ردشده
+## Rejected Options
 
-| گزینه | چرا نه |
+| Option | Why not |
 |---|---|
-| **بدون کش** | با یک کاربر کار می‌کند، اما با ده کاربر ClickHouse ده برابر کوئری تکراری اجرا می‌کند. |
-| **کش درون‌پروسه‌ای (`lru_cache` یا dict) در API** | با چند worker در uvicorn، هر پروسه کش جدای خودش را دارد و pub/sub بین پروسه‌ها وجود ندارد. برای کش مرجع **در collector** مناسب است (لایه‌ی ①)، اما برای API نه. |
-| **فقط TTL ثابت (مثلاً ۶۰ ثانیه)** | با تیک هم‌تراز نیست. ممکن است تا ۵۹ ثانیه داده‌ی کهنه نشان دهد یا زودتر از لازم منقضی شود. |
-| **Query cache داخلی ClickHouse** | ساده است و به‌عنوان مکمل فعال می‌شود، اما در سطح کوئری است، JSON سریال‌شده را کش نمی‌کند و pub/sub ندارد. |
-| **CDN / Varnish** | برای یک سرویس داخلی زیرساخت زیادی است. کش HTTP (⑤) همان مزیت را در مرورگر می‌دهد. |
+| **No cache** | Works with one user, but with ten users ClickHouse runs ten times the duplicate queries. |
+| **In-process cache (`lru_cache` or dict) in the API** | With multiple uvicorn workers, each process has its own separate cache and there's no pub/sub between processes. Suitable for the reference cache **in the collector** (layer ①), but not for the API. |
+| **Fixed TTL only (e.g., 60 seconds)** | Not aligned with the tick. Might show stale data for up to 59 seconds, or expire earlier than necessary. |
+| **ClickHouse's built-in query cache** | Simple, and enabled as a complement, but it's at the query level, doesn't cache serialized JSON, and has no pub/sub. |
+| **CDN / Varnish** | Too much infrastructure for an internal service. The HTTP cache (⑤) gives the same benefit in the browser. |
 
-## پیامدها
+## Consequences
 
-- ➕ بار روی TSETMC و ClickHouse مستقل از تعداد کاربران می‌شود.
-- ➕ پنل «زنده» است (SSE)، بدون polling.
-- ➖ یک سرویس دیگر (Redis) در compose. در عوض همین سرویس کانال رویداد را هم فراهم می‌کند.
-- ➖ اگر Redis در دسترس نباشد، API باید بدون کش کار کند (fail-open): خطای کش لاگ می‌شود و مستقیم ClickHouse کوئری می‌خورد.
+- ➕ Load on TSETMC and ClickHouse becomes independent of the number of users.
+- ➕ The panel is "live" (SSE), with no polling.
+- ➖ One more service (Redis) in the compose file. In exchange, this same service also provides the event channel.
+- ➖ If Redis is unavailable, the API must work without caching (fail-open): the cache error is logged and ClickHouse is queried directly.
 
-## بازبینی روز ۴: لایه‌ی ② پس از اندازه‌گیری رد شد
+## Day 4 Review: Layer ② Rejected After Measurement
 
-فرض اولیه این بود که دیده‌بان کامل ۱۵ ثانیه طول می‌کشد. اندازه‌گیری دوم با `scripts/probe_delta.py` (۲ مهر ۱۴۰۵) دو یافته داشت:
+The initial assumption was that a full watch takes 15 seconds. A second measurement with `scripts/probe_delta.py` (2 Mehr 1405) had two findings:
 
-| درخواست | حجم روی شبکه | زمان | ردیف |
+| Request | Size over the network | Time | Rows |
 |---|--:|--:|--:|
-| دیده‌بان کامل، **با** `Accept-Encoding: gzip` | ۶۱۰ KB | **۰٫۹۹ ث** | ۳٬۸۴۵ |
-| فقط تغییرات (`hEven`/`RefID` از پاسخ قبلی) | ۰٫۶ KB | ۰٫۳۵ ث | ۱ |
-| نسخه‌ی قدیمی MarketWatchPlus، کامل | ۴۲۵ KB | ۱٫۶۶ ث | ۳٬۸۴۵ |
+| Full watch, **with** `Accept-Encoding: gzip` | 610 KB | **0.99 s** | 3,845 |
+| Deltas only (`hEven`/`RefID` from the previous response) | 0.6 KB | 0.35 s | 1 |
+| Old MarketWatchPlus version, full | 425 KB | 1.66 s | 3,845 |
 
-1. **علت ۱۵ ثانیه، نبودن فشرده‌سازی بود، نه حجم داده.** اسکریپت اولیه‌ی ضبط هدر `Accept-Encoding` نمی‌فرستاد و ۳٫۵ مگابایت خام دریافت می‌کرد. collector از httpx استفاده می‌کند که gzip را به‌طور پیش‌فرض درخواست می‌کند، پس همیشه همان حدود ۱ ثانیه را داشته است.
-2. **دریافت تغییرات کار می‌کند** و فقط ۰٫۶ ثانیه صرفه‌جویی می‌دهد.
+1. **The cause of the 15 seconds was the missing compression, not the data volume.** The initial recording script didn't send the `Accept-Encoding` header and received 3.5 MB raw. The collector uses httpx, which requests gzip by default, so it has always been around that 1-second figure.
+2. **Fetching deltas works** and only saves 0.6 seconds.
 
-**تصمیم:** در هر دقیقه دیده‌بان **کامل** دریافت می‌شود. دریافت تغییرات ۶۰٪ از یک ثانیه را صرفه‌جویی می‌کند، اما وضعیت نگه‌داشته‌شده در collector را لازم دارد، در صورت از دست رفتن یک پاسخ خطا انباشته می‌شود (drift)، هر restart به snapshot کامل نیاز دارد، و `replay` دیگر نمی‌تواند هر چرخه را مستقل بازسازی کند. snapshot کامل **بدون وضعیت و خودترمیم** است. اگر روزی زمان پاسخ به محدوده‌ی خطرناک برسد (پایش `raw_snapshots.latency_ms`)، این تصمیم دوباره بررسی می‌شود.
+**Decision:** The watch is fetched **in full** every minute. Fetching deltas saves 60% of one second, but requires state kept in the collector, accumulates drift if a response is lost, requires a full snapshot on every restart, and would make `replay` unable to reconstruct each cycle independently. A full snapshot is **stateless and self-healing**. If response time ever reaches a dangerous range (monitored via `raw_snapshots.latency_ms`), this decision will be revisited.
 
-!!! note "درس"
-    فرض «کند است، پس کش لازم است» پیش از اندازه‌گیری دوم اشتباه بود. این ADR عمداً بازنویسی نشده و بخش بازبینی به آن اضافه شده تا مسیر تصمیم دیده شود.
+!!! note "Lesson"
+    The assumption "it's slow, so caching is needed" was wrong before the second measurement. This ADR was deliberately not rewritten; a review section was added to it instead, so the decision trail stays visible.
 
-## بازبینی روز ۶: دو اصلاح پس از آزمون بار
+## Day 6 Review: Two Fixes After the Load Test {#day-6-review-two-fixes-after-the-load-test}
 
-آزمون بار ([نتایج](../09-quality-engineering.md#آزمون-بار)) دو نقطه‌ی ضعف لایه‌ی ④ را نشان داد:
+The [load test](../09-quality-engineering.md#load-test) exposed two weaknesses in layer ④:
 
-1. **ازدحام در لحظه‌ی تیک (cache stampede).** کلید کش به تیک بسته است، پس با هر تیک همه‌ی کلیدها هم‌زمان منقضی می‌شوند و همه‌ی پنل‌های باز در همان ثانیه miss می‌گیرند: ۵۶ محاسبه به‌جای ۶ برای ۲۰ کاربر. این هزینه‌ی مستقیم انتخاب «باطل‌سازی با تیک» بود. **اصلاح:** محاسبه‌ی هر کلید در هر پروسه *single-flight* شد و درخواست‌های هم‌زمان منتظر همان نتیجه می‌مانند.
-2. **یک پرس‌وجوی پنهان قبل از کش.** پیش‌فرض `?date=` (آخرین جلسه) در هر درخواست از ClickHouse پرسیده می‌شد، حتی برای پاسخ‌های ۳۰۴. **اصلاح:** آخرین جلسه به‌ازای هر تیک در حافظه نگه داشته می‌شود.
+1. **Cache stampede at the tick moment.** The cache key is tied to the tick, so with every tick all keys expire simultaneously and every open panel misses in the same second: 56 computations instead of 6 for 20 users. This was a direct cost of the "invalidate by tick" choice. **Fix:** computation of each key became *single-flight* per process, and concurrent requests wait on the same result.
+2. **A hidden query before the cache.** The default `?date=` (latest session) was queried from ClickHouse on every request, even for 304 responses. **Fix:** the latest session per tick is now kept in memory.
 
-نتیجه: پاسخ ۳۰۴ از ۱۱٫۴ به ۲٫۹ میلی‌ثانیه رسید و توان عملیاتی حالت کش از ۱۳۲ به ۲۸۳ درخواست در ثانیه (۳۴۹ با ETag). **پیامد جدید:** single-flight در سطح پروسه است. با چند worker، هر worker یک بار محاسبه می‌کند. نسخه‌ی توزیع‌شده با قفل Redis در [گام‌های بعدی](../10-limitations.md#گامهای-بعدی) آمده است.
+Result: 304 response time went from 11.4 to 2.9 ms, and cached-mode throughput went from 132 to 283 requests per second (349 with ETag). **New consequence:** single-flight is process-level. With multiple workers, each worker computes it once. A distributed version with a Redis lock is covered in [Next Steps](../10-limitations.md#next-steps).
 
-## بازبینی پس از روز ۷: نسخه‌ی داده فقط تیک نیست
+## Post-Day-7 Review: The Cache Version Isn't Just the Tick {#post-day-7-review-the-cache-version-isnt-just-the-tick}
 
-کلید کش و ETag روی شناسه‌ی آخرین تیک بنا شده بود، با فرض اینکه **داده فقط با تیک تازه عوض می‌شود**. دو چیز این فرض را شکست:
+The cache key and ETag were built on the latest tick id, assuming **data only changes with a fresh tick**. Two things broke that assumption:
 
-1. **داده‌ی تازه زیر تیک قدیمی.** بازسازی دقیقه‌های جاافتاده ([ADR 0012](0012-intraday-backfill.md)) پس از بسته شدن بازار ردیف می‌نویسد، وقتی تیک تازه‌ای نمی‌آید. صفحه‌ی صندوقی که پیش از آن باز شده بود، با ۳۰۴ تا روز بعد همان پاسخ بی‌داده را نگه می‌داشت. حالا `TickBus.bump()` شناسه را با پسوند عوض می‌کند (`…12:29:00+03:30#backfill.…`) و روی همان کانال پیام می‌دهد؛ کش‌ها باطل و پنل‌های باز به‌روز می‌شوند.
-2. **پاسخ‌هایی که به ساعت وابسته‌اند.** `is_live` و نوار تعطیلی به زمان حال بستگی دارند، نه به داده. پاسخی که ساعت ۱۲:۲۹ کش شده بود پس از بسته شدن هم ۳۰۴ می‌گرفت. حالا نسخه‌ی کش `{tick}|{open یا closed}` است (`api/cache.py: versioned`).
+1. **Fresh data under an old tick.** Backfilling missed minutes ([ADR 0012](0012-intraday-backfill.md)) writes rows after market close, when no fresh tick is coming. A fund page opened before that kept getting the same dataless 304 response until the next day. Now `TickBus.bump()` changes the id with a suffix (`…12:29:00+03:30#backfill.…`) and publishes on the same channel; caches are invalidated and open panels update.
+2. **Responses that depend on the clock.** `is_live` and the holiday banner depend on the current time, not on the data. A response cached at 12:29 kept returning 304 even after close. Now the cache version is `{tick}|{open or closed}` (`api/cache.py: versioned`).

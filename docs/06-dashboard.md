@@ -1,319 +1,319 @@
-# پنل و نمودارهای تحلیلی
+# Dashboard and Analytical Charts
 
-<p class="lead">پنل برای این ساخته شده که یک معامله‌گر یا مدیر پرتفوی در کمتر از یک دقیقه تصویر بزرگ بازار صندوق‌های سهامی را ببیند: پول کجاست، به کدام سمت می‌رود، بازار صندوق‌ها را گران می‌خرد یا ارزان، و چقدر می‌شود به این اعداد اعتماد کرد. هر نمودار به یکی از این سؤال‌ها جواب می‌دهد و در پنل هم همان سؤال زیر عنوانش نوشته شده است.</p>
+<p class="lead">The dashboard was built so a trader or portfolio manager can see the equity-fund market's big picture in under a minute: where the money is, which direction it's heading, whether the fund market is being bought expensive or cheap, and how much these numbers can be trusted. Each chart answers one of these questions, and that same question is written under its title in the dashboard.</p>
 
 <div class="kpis">
-  <div class="kpi"><b>۸</b><span>نمودار تحلیلی، هر کدام برای یک سؤال</span></div>
-  <div class="kpi"><b>۰</b><span>نمودار با دو محور عمودی</span></div>
-  <div class="kpi"><b>۱ رویداد</b><span>برای به‌روزرسانی زنده (SSE)؛ بدون polling</span></div>
-  <div class="kpi"><b>۲۸۵ KB</b><span>حجم gzip جاوااسکریپت پنل، همراه با ECharts</span></div>
+  <div class="kpi"><b>8</b><span>analytical charts, each for one question</span></div>
+  <div class="kpi"><b>0</b><span>charts with two vertical axes</span></div>
+  <div class="kpi"><b>1 event</b><span>for live updates (SSE); no polling</span></div>
+  <div class="kpi"><b>285 KB</b><span>gzip size of the dashboard's JavaScript, including ECharts</span></div>
 </div>
 
 <figure class="shot">
-<img src="assets/screens/overview-light.webp#only-light" alt="نمای کلی پنل">
-<img src="assets/screens/overview-dark.webp#only-dark" alt="نمای کلی پنل در پوسته‌ی تیره">
-<figcaption>شکل ۱ — بالای داشبورد روی داده‌ی واقعی پایان جلسه‌ی ۱ مهر ۱۴۰۵: کاشی‌های شاخص و نقشه‌ی بازار. پوسته‌ی روشن و تیره هر کدام رنگ‌های جداگانه‌ی خود را دارند و این تصویر هم با پوسته‌ی همین سایت عوض می‌شود.</figcaption>
+<img src="assets/screens/overview-light.webp#only-light" alt="Dashboard overview">
+<img src="assets/screens/overview-dark.webp#only-dark" alt="Dashboard overview in dark mode">
+<figcaption>Figure 1 — The top of the dashboard on real end-of-session data from 1 Mehr 1405: KPI tiles and the market map. Light and dark mode each have their own separate colors, and this image changes with this site's own theme too.</figcaption>
 </figure>
 
-!!! info "داده‌ی تصویرها"
-    تصویرهای این صفحه از پنل واقعی روی داده‌ی واقعی گرفته شده‌اند، دقیقاً همان چیزی که یک نصب تازه بعد از بسته شدن بازار نشان می‌دهد: فهرست صندوق‌ها، NAV، ۴۰۰ روز تاریخچه و **عکس پایانی** جلسه‌ی ۱ مهر ۱۴۰۵ (پاسخ‌هایی که ۲ مهر ضبط شدند و از مسیر `bootstrap` عبور کردند). نمودارهای درون‌روز به داده‌ی دقیقه‌ای از داخل یک جلسه نیاز دارند. در بازه‌ی ساخت پروژه، سرویس در طول هیچ جلسه‌ای روی سیستم کاربر روشن نبود، پس این دو نمودار در تصویرها خالی‌اند ([محدودیت‌ها](10-limitations.md)).
+!!! info "Data behind the screenshots"
+    The screenshots on this page are taken from the real dashboard on real data — exactly what a fresh install shows after market close: the fund list, NAV, 400 days of history, and the **end-of-day snapshot** of the 1 Mehr 1405 session (responses recorded on 2 Mehr that went through the `bootstrap` path). Intraday charts need minute-level data from inside a live session. During the project's build window, the service wasn't running on the user's system during any live session, so those two charts are empty in the screenshots ([Limitations](10-limitations.md)).
 
-## یک روال یک‌دقیقه‌ای برای خواندن پنل
+## A one-minute routine for reading the dashboard
 
-پنل از بالا به پایین از **کلی به جزئی** چیده شده است، و ترتیب کارت‌ها همان ترتیبی است که یک مدیر پرتفوی معمولاً سؤال‌هایش را می‌پرسد:
+The dashboard is laid out top to bottom, from **general to specific**, and the card order matches the order a portfolio manager typically asks these questions:
 
-| گام | کجا را نگاه کنید | سؤال | زمان |
+| Step | Where to look | Question | Time |
 |:---:|---|---|:---:|
-| ۱ | کاشی‌های بالای صفحه | امروز روز ورود پول است یا خروج؟ بازار گران است یا ارزان؟ | ۵ ثانیه |
-| ۲ | نقشه‌ی بازار | این حرکت همه‌گیر است یا فقط چند صندوق بزرگ؟ | ۱۰ ثانیه |
-| ۳ | ورود پول درون‌روز و روزانه | این جریان تازه شروع شده یا ادامه‌ی یک روند چندهفته‌ای است؟ | ۱۵ ثانیه |
-| ۴ | حباب و نقشه‌ی پول | پول دنبال صندوق‌های گران است (هیجان) یا ارزان (فرصت‌یابی)؟ | ۱۵ ثانیه |
-| ۵ | بازده‌ها و ریسک و بازده | چه کسی جلو افتاده، و به چه قیمتی (نوسان)؟ | ۱۵ ثانیه |
-| ۶ | کیفیت داده | می‌شود به همه‌ی این‌ها اعتماد کرد؟ | ۵ ثانیه |
+| 1 | Top-of-page tiles | Is today a day of inflows or outflows? Is the market expensive or cheap? | 5 seconds |
+| 2 | Market map | Is this move broad-based, or just a few large funds? | 10 seconds |
+| 3 | Intraday and daily net inflow | Did this flow just start, or is it the continuation of a multi-week trend? | 15 seconds |
+| 4 | Premium and money map | Is money chasing expensive funds (exuberance) or cheap ones (bargain-hunting)? | 15 seconds |
+| 5 | Returns, and risk vs. return | Who's ahead, and at what cost (volatility)? | 15 seconds |
+| 6 | Data quality | Can all of this be trusted? | 5 seconds |
 
-بعد از این مرور، جدول و صفحه‌ی هر صندوق برای بررسی دقیق‌تر آماده‌اند: با کلیک روی هر صندوق در نقشه، نمودار حباب، نقشه‌ی پول، بازده‌ها یا جدول، صفحه‌ی همان صندوق باز می‌شود.
+After this walkthrough, the table and each fund's page are there for a closer look: clicking on any fund in the map, the premium chart, the money map, the returns chart, or the table opens that fund's page.
 
-## اصول طراحی
+## Design principles
 
 <div class="grid cards two" markdown>
 
--   :material-help-circle-outline: __یک نمودار، یک سؤال__
+-   :material-help-circle-outline: __One chart, one question__
 
-    اگر نتوانیم سؤالی را که یک نمودار جواب می‌دهد در یک جمله بنویسیم، آن نمودار ساخته نمی‌شود. همین جمله زیر عنوان هر کارت در پنل آمده است.
+    If we can't write the question a chart answers in a single sentence, that chart doesn't get built. That same sentence appears under each card's title in the dashboard.
 
--   :material-palette-outline: __رنگ فقط یک معنا دارد__
+-   :material-palette-outline: __Color carries exactly one meaning__
 
-    **هویت** (نوع صندوق): چهار رنگ ثابت آبی، نارنجی، سبزآبی و زرد، همیشه به همین ترتیب. **جهت** (مثبت/منفی): طیف آبی ↔ خاکستری ↔ قرمز. هیچ رنگی در دو نقش به کار نمی‌رود.
+    **Identity** (fund type): four fixed colors — blue, orange, teal, and yellow — always in that order. **Direction** (positive/negative): a blue ↔ gray ↔ red scale. No color is ever used for both roles.
 
--   :material-chart-line-variant: __هیچ‌وقت دو محور عمودی__
+-   :material-chart-line-variant: __Never two vertical axes__
 
-    پول و شاخص دو واحد متفاوت‌اند. به‌جای یک نمودار با دو محور، دو پنل روی یک محور زمان داریم. دو محور عمودی به بیننده اجازه می‌دهد هر همبستگی دلخواهی را «ببیند»، چون مقیاس هر محور را می‌شود دلخواه انتخاب کرد.
+    Money and the index are two different units. Instead of one chart with two axes, we use two panels sharing one time axis. Two vertical axes let the viewer "see" whatever correlation they want, because each axis's scale can be chosen arbitrarily.
 
--   :material-table-eye: __همیشه یک نمای جدولی__
+-   :material-table-eye: __Always a tabular view__
 
-    هر عددی که در نمودار هست، در جدول صندوق‌ها یا tooltip هم هست. پس رنگ هیچ‌وقت تنها راه خواندن یک مقدار نیست.
+    Every number that appears in a chart also appears in the fund table or in a tooltip. So color is never the only way to read a value.
 
--   :material-arrow-right-bold-outline: __زمان از چپ به راست__
+-   :material-arrow-right-bold-outline: __Time runs left to right__
 
-    متن پنل راست‌به‌چپ است، اما محور زمان مثل همه‌ی نمودارهای مالی **از چپ (قدیمی) به راست (جدید)** است. محور مقدار هم سمت چپ است. معامله‌گر این جهت را از هر پلتفرم نموداری، از جمله نمودارهای خود TSETMC، می‌شناسد ([بازبینی روز ۷](#بازبینی-روز-۷-جهت-محور-زمان)).
+    The dashboard's text is right-to-left, but the time axis, like every financial chart, runs **left (older) to right (newer)**. The value axis is on the left as well. Traders know this orientation from every charting platform, including TSETMC's own charts ([Day 7 review](#day-7-review-time-axis-direction)).
 
--   :material-lightning-bolt-outline: __زنده، بدون polling__
+-   :material-lightning-bolt-outline: __Live, without polling__
 
-    پنل با یک اتصال SSE منتظر رویداد «تیک جدید» می‌ماند و فقط در همان لحظه داده را دوباره می‌گیرد. داده‌ی قبلی تا رسیدن داده‌ی تازه روی صفحه می‌ماند، فقط کم‌رنگ‌تر (بدون پرش و بدون اسکلت خالی).
+    The dashboard holds an SSE connection open and waits for a "new tick" event, re-fetching data only at that moment. The previous data stays on screen until fresh data arrives, just dimmed a bit (no jump, no empty skeleton).
 
--   :material-calendar-search-outline: __انتخابگر جلسه__
+-   :material-calendar-search-outline: __Session picker__
 
-    یک `<select>` در سربرگ پنل («جلسه‌ی زنده (آخرین)» + هر جلسه‌ای که `fund_ticks` برایش داده دارد) پارامتر `?date=` را روی همه‌ی endpointها ست می‌کند، همان چیزی که [API](07-api.md) از اول پشتیبانی می‌کرد ولی پنل کنترلی برایش نداشت. جلسه‌هایی که فقط عکس پایانی دارند (نه سری دقیقه‌ای) با «فقط پایانی» علامت می‌خورند تا نمودار درون‌روز خالی غافلگیرکننده نباشد.
+    A `<select>` in the dashboard header ("Live session (latest)" plus every session `fund_ticks` has data for) sets the `?date=` parameter on every endpoint — something the [API](07-api.md) had supported from the start but the dashboard had no control for. Sessions that have only an end-of-day snapshot (no minute-by-minute series) are marked "End-of-day only" so an empty intraday chart isn't a surprise.
 
 </div>
 
-### چرا آبی ↔ قرمز و نه سبز ↔ قرمز؟
+### Why blue ↔ red, not green ↔ red?
 
-عرف بازار ایران (و خود TSETMC) سبز برای مثبت و قرمز برای منفی است. اما سبز و قرمز برای حدود ۸٪ مردان (کوررنگی قرمز-سبز) تقریباً یکی دیده می‌شوند. این را اندازه گرفتیم:
+Iranian market convention (and TSETMC itself) uses green for positive and red for negative. But for about 8% of men (red-green color blindness), green and red look nearly identical. We measured this:
 
-| جفت رنگ | فاصله‌ی رنگی برای کوررنگی protan (ΔE) | نتیجه |
+| Color pair | Color distance for protan color blindness (ΔE) | Result |
 |---|:---:|:---:|
-| سبز `#006300` ↔ قرمز `#d03b3b` | ۴٫۶ | <span class="pill todo">مردود (حداقل ۸)</span> |
-| آبی `#2a78d6` ↔ قرمز `#e34948` | ۲۱٫۶ | <span class="pill done">قبول</span> |
+| Green `#006300` ↔ Red `#d03b3b` | 4.6 | <span class="pill todo">Fails (minimum 8)</span> |
+| Blue `#2a78d6` ↔ Red `#e34948` | 21.6 | <span class="pill done">Passes</span> |
 
-پس **رنگ خانه‌ها و نقطه‌ها** (نقشه‌ی بازار، بازده‌ها، ورود پول) آبی ↔ قرمز است. **متن اعداد** در جدول‌ها همان سبز/قرمز آشنای بازار را نگه داشته، چون آنجا علامت `+` یا `−` هم همراه عدد است و رنگ فقط کمکی است. هر علامت با یک «ایزوله‌ی چپ‌به‌راست» یونیکد (`U+2066…U+2069`) چاپ می‌شود تا در متن فارسی همیشه سمت چپ عدد بماند: «+۱٫۲٪» و نه «۱٫۲٪+».
+So **cell and point colors** (market map, returns, net inflow) are blue ↔ red. **Number text** in tables keeps the market's familiar green/red, because there the `+` or `−` sign accompanies the number and color is only a secondary cue. Each sign is printed with a Unicode "left-to-right isolate" (`U+2066…U+2069`) so it always stays to the left of the number within Persian text: "+1.2%" rather than "1.2%+".
 
-## نمودارها، یکی‌یکی
+## The charts, one by one
 
-### ۱. کاشی‌های شاخص
+### 1. KPI tiles
 
-<div class="ask">سؤال: امروز در یک نگاه چه خبر است؟</div>
+<div class="ask">Question: What's happening today, at a glance?</div>
 
 <figure class="shot">
-<img src="assets/screens/kpis.webp" alt="کاشی‌های شاخص">
+<img src="assets/screens/kpis.webp" alt="KPI tiles">
 </figure>
 
-| کاشی | چرا این عدد و نه عدد دیگر |
+| Tile | Why this number and not another |
 |---|---|
-| **خالص دارایی کل** | اندازه‌ی کل بازار صندوق‌های سهامی. مبنای هر نسبت دیگر است (مثلاً ورود پول ÷ دارایی). |
-| **ورود پول حقیقی امروز** | مهم‌ترین نشانه‌ی رفتار سرمایه‌گذار خرد. جهتش با پیکان و رنگ و علامت، هر سه، نشان داده می‌شود. |
-| **میانه‌ی حباب** | **میانه** و نه میانگین، چون دو صندوق با تخفیف ۳۰٪ (دارا یکم و پالایش) میانگین را به‌تنهایی جابه‌جا می‌کنند. صندوق‌های اهرمی کنار گذاشته شده‌اند ([چرا](05-financial-logic.md#یافته-nav-صندوقهای-اهرمی-قابل-مقایسه-با-قیمت-نیست)). |
-| **پهنای بازار** | اینکه چند صندوق مثبت‌اند، نه چقدر. یک روز «+۱٪» با ۱۳۷ صندوق مثبت با یک روز «+۱٪» که فقط سه صندوق بزرگ آن را ساخته‌اند فرق دارد. نوار زیر عدد نسبت مثبت / بی‌تغییر / منفی را نشان می‌دهد. |
-| **ارزش معاملات** | نقدشوندگی امروز. |
-| **شاخص کل** | زمینه: صندوق‌ها همراه بازار حرکت کردند یا خلاف آن؟ |
-| **کامل بودن داده** | چند درصد از دقیقه‌های جلسه واقعاً دریافت شده‌اند. اگر پایین باشد، باقی اعداد صفحه با احتیاط خوانده می‌شوند. |
+| **Total net assets** | The size of the entire equity-fund market. It's the denominator for every other ratio (e.g., net inflow ÷ assets). |
+| **Today's retail net inflow** | The single most important signal of retail investor behavior. Its direction is shown three ways: arrow, color, and sign. |
+| **Median premium** | **Median**, not mean, because two funds with a 30% discount (Dara-1 and Palayesh) can shift the mean on their own. Leveraged funds are excluded ([why](05-financial-logic.md#finding-leveraged-fund-nav-isnt-comparable-to-price)). |
+| **Market breadth** | How many funds are positive, not by how much. A "+1%" day with 137 funds up is different from a "+1%" day driven by just three large funds. The bar under the number shows the ratio of up / unchanged / down. |
+| **Trading value** | Today's liquidity. |
+| **Overall index** | Context: did the funds move with the market or against it? |
+| **Data completeness** | What percentage of the session's minutes were actually collected. If it's low, every other number on the page should be read with caution. |
 
-### ۲. نقشه‌ی بازار صندوق‌ها (treemap)
+### 2. Fund market map (treemap)
 
-<div class="ask">سؤال: پول کجاست و امروز چطور حرکت کرد؟</div>
-
-<figure class="shot">
-<img src="assets/screens/treemap.webp" alt="نقشه‌ی بازار">
-<figcaption>شکل ۲ — مساحت هر خانه خالص دارایی صندوق است و رنگش تغییر قیمت امروز (از قرمز −۳٪ تا آبی +۳٪). صندوق‌ها بر اساس نوع گروه‌بندی شده‌اند.</figcaption>
-</figure>
-
-- **معامله‌گر:** می‌بیند حرکت امروز همه‌گیر است یا نه. اگر همه‌ی خانه‌ها آبی باشند، حرکت بازاری است. اگر فقط یک گروه آبی باشد، حرکت بخشی است.
-- **مدیر پرتفوی:** وزن‌ها را می‌بیند. در این تصویر پالایش به‌تنهایی بخش بزرگی از گروه «بخشی» است، یعنی هر خبری درباره‌ی پالایشی‌ها بخش مهمی از این بازار را تکان می‌دهد.
-- **چرا مساحت دارایی و نه ارزش معاملات؟** تصویر بزرگ یعنی «پول کجا نشسته است». ارزش معاملات روزبه‌روز بالا و پایین می‌رود و نقشه را بی‌ثبات می‌کند.
-- **چرا اشباع در ±۳٪؟** بیشتر صندوق‌ها روزانه کمتر از ۳٪ حرکت می‌کنند. اگر مقیاس تا دامنه‌ی مجاز روزانه ادامه پیدا می‌کرد، همه‌ی خانه‌ها خاکستری دیده می‌شدند.
-
-### ۳. ورود پول حقیقی در طول جلسه
-
-<div class="ask">سؤال: همین حالا پول حقیقی وارد می‌شود یا خارج؟ و شاخص کل همراه آن چه می‌کند؟</div>
-
-دو پنل روی یک محور زمان: بالا **ورود پول حقیقی تجمعی** همه‌ی صندوق‌ها (ناحیه‌ی آبی، با عدد آخر روی انتهای خط) و پایین **شاخص کل**، با رنگ کم‌رنگ چون فقط زمینه است. نشانگر عمودی در هر دو پنل هم‌زمان حرکت می‌کند.
-
-- **معامله‌گر:** شیب منحنی را می‌بیند. خروج پول در ساعت اول که در ساعت آخر برمی‌گردد با خروجی که تا پایان جلسه ادامه دارد فرق دارد.
-- **چرا تجمعی؟** جریان دقیقه‌ای پرنوسان است. جمع تجمعی همان سؤالی را جواب می‌دهد که معامله‌گر واقعاً می‌پرسد: «تا الان چقدر؟».
-- **چرا شاخص در پنل جدا؟** با دو محور روی یک نمودار، هر همبستگی دلخواهی را می‌شود با انتخاب مقیاس «ساخت». با دو پنل هم‌تراز، بیننده خودش مقایسه می‌کند.
-- **جلسه‌ای که کالکتور در آن خاموش بوده:** برای آن جلسه فقط **عکس پایانی** وجود دارد ([ADR 0004](adr/0004-scheduling.md#بازبینی-روز-۵-راهاندازی-خارج-از-ساعات-بازار)). همه‌ی کارت‌های دیگر پر می‌شوند، و این کارت به‌جای یک نمودار خالی می‌گوید چرا منحنی درون‌روز ندارد.
-
-### ۴. ورود پول حقیقی روزانه به تفکیک نوع
-
-<div class="ask">سؤال: روند چند هفته‌ی اخیر چیست و پول به کدام نوع صندوق می‌رود؟</div>
+<div class="ask">Question: Where is the money, and how did it move today?</div>
 
 <figure class="shot">
-<img src="assets/screens/daily-flows.webp" alt="ورود پول روزانه">
-<figcaption>شکل ۳ — ستون‌های انباشته با علامت: ورودها بالای صفر و خروج‌ها پایین صفر روی هم می‌نشینند. ستون کم‌رنگ با * روزی است که جریان ریالی آن از حجم × میانگین قیمت برآورد شده است.</figcaption>
+<img src="assets/screens/treemap.webp" alt="Market map">
+<figcaption>Figure 2 — Each cell's area is the fund's net assets, and its color is today's price change (from red at −3% to blue at +3%). Funds are grouped by type.</figcaption>
 </figure>
 
-- **مدیر پرتفوی:** چرخش پول بین انواع صندوق را می‌بیند. در این تصویر، در چهار جلسه‌ی ۱۱ تا ۱۷ مرداد حدود ۴٫۳ همت پول حقیقی تقریباً فقط به صندوق‌های **سهامی** و **بخشی** وارد شد، در حالی که ورود پول به اهرمی‌ها نزدیک صفر بود. در ۱۸ مرداد یکباره ۲٫۴ همت خارج شد و یک‌سوم آن از **اهرمی‌ها** بود. این الگو را فقط وقتی می‌شود دید که انواع صندوق جدا باشند.
-- **چرا انباشته با علامت (و نه خالص)؟** اگر فقط خالص روزانه را نشان دهیم، روزی که ۵۰۰ میلیارد تومان به سهامی‌ها وارد و ۵۰۰ میلیارد از اهرمی‌ها خارج شده «صفر» دیده می‌شود. نمودار انباشته این چرخش را نشان می‌دهد.
-- **چرا روزهای برآوردی کم‌رنگ‌اند؟** TSETMC برای روز جاری ارزش ریالی رسمی حقیقی/حقوقی نمی‌دهد و سرویس آن را برآورد می‌کند ([کیفیت داده](04-data-quality.md)). پنل این برآورد را پنهان نمی‌کند.
-- بازه‌ی ۲۰، ۶۰ یا ۱۲۰ روز با یک کنترل بالای کارت انتخاب می‌شود.
+- **Trader:** sees whether today's move is broad-based or not. If every cell is blue, the move is market-wide. If only one group is blue, the move is sector-specific.
+- **Portfolio manager:** sees the weights. In this image, Palayesh alone makes up a large share of the "sector" group, meaning any news about refining funds moves a significant part of this market.
+- **Why asset area and not trading value?** The big picture means "where is the money sitting." Trading value swings up and down day to day and would make the map unstable.
+- **Why saturate at ±3%?** Most funds move less than 3% in a day. If the scale extended to the full daily price-band limit, every cell would look gray.
 
-### ۵. حباب و تخفیف نسبت به NAV
+### 3. Intraday retail net inflow
 
-<div class="ask">سؤال: بازار صندوق‌ها را گران می‌خرد یا ارزان، و کجا؟</div>
+<div class="ask">Question: Right now, is retail money flowing in or out? And what's the overall index doing alongside it?</div>
+
+Two panels on one shared time axis: on top, **cumulative retail net inflow** across all funds (blue area, with the latest value at the end of the line), and below it the **overall index**, dimmed since it's only context. The vertical crosshair moves across both panels together.
+
+- **Trader:** reads the slope of the curve. An outflow in the first hour that reverses by the end differs from an outflow that persists through the close.
+- **Why cumulative?** Minute-by-minute flow is noisy. A running total answers the question a trader actually asks: "how much so far?"
+- **Why the index in a separate panel?** With two axes on one chart, you can "manufacture" any correlation you want by picking the scale. With two aligned panels, the viewer does the comparison themselves.
+- **A session where the collector was off:** for that session only an **end-of-day snapshot** exists ([ADR 0004](adr/0004-scheduling.md#day-5-review-startup-outside-market-hours)). Every other card still fills in, and this card explains why it has no intraday curve instead of just showing an empty chart.
+
+### 4. Daily retail net inflow by fund type
+
+<div class="ask">Question: What's the trend over recent weeks, and which fund type is money flowing into?</div>
 
 <figure class="shot">
-<img src="assets/screens/premium.webp" alt="نمودار حباب">
-<figcaption>شکل ۴ — هر نقطه یک صندوق است: محور افقی حباب، ردیف نوع صندوق، اندازه‌ی نقطه خالص دارایی. خط سیاه کوتاه میانه‌ی هر ردیف است.</figcaption>
+<img src="assets/screens/daily-flows.webp" alt="Daily net inflow">
+<figcaption>Figure 3 — Signed stacked bars: inflows stack above zero and outflows stack below it. A dimmed bar marked with * is a day whose rial flow was estimated from volume × average price.</figcaption>
 </figure>
 
-- **معامله‌گر:** صندوق‌های دورافتاده را پیدا می‌کند. نقطه‌ی درشت −۳۵٪ (دارا یکم) و −۳۰٪ (پالایش) فرصت آربیتراژ نیستند (محدودیت ابطال دارند) و این نمودار آن‌ها را به‌جای میانگین، جدا نشان می‌دهد.
-- **مدیر پرتفوی:** میانه‌ی هر ردیف را با صفر مقایسه می‌کند. میانه‌ی مثبت و رو به افزایش در صندوق‌های سهامی معمولاً نشانه‌ی هیجان خرد است.
-- **ردیف اهرمی عمداً خالی است.** «حباب» −۱۸٪ آن‌ها ساختگی است (NAV منتشرشده ارزش واحد عادی معامله‌شده نیست). نشان دادن این عدد یعنی نشان دادن فرصتی که وجود ندارد ([جزئیات](05-financial-logic.md#یافته-nav-صندوقهای-اهرمی-قابل-مقایسه-با-قیمت-نیست)).
-- **چرا نمودار نقطه‌ای و نه میانگین هر نوع؟** یک عدد میانگین هم پراکندگی را پنهان می‌کند و هم تحت تأثیر دو صندوق خاص است. پراکندگی نقطه‌ها خودش اطلاعات است.
+- **Portfolio manager:** sees money rotating between fund types. In this image, across the four sessions of 11–17 Mordad, about 4.3 trillion toman of retail money flowed almost entirely into **equity** and **sector** funds, while inflow to leveraged funds was close to zero. On 18 Mordad, 2.4 trillion toman suddenly left, a third of it from **leveraged funds**. This pattern is visible only when fund types are kept separate.
+- **Why signed stacking and not net?** Showing only the daily net would make a day where 500 billion toman entered equity funds and 500 billion left leveraged funds look like "zero." The stacked chart reveals this rotation.
+- **Why are estimated days dimmed?** TSETMC doesn't publish an official rial value for retail/institutional flow on the current day, so the service estimates it ([Data quality](04-data-quality.md)). The dashboard doesn't hide that this is an estimate.
+- The 20-, 60-, or 120-day window is chosen with a control above the card.
 
-### ۶. نقشه‌ی پول و ارزش‌گذاری
+### 5. Premium and discount to NAV
 
-<div class="ask">سؤال: پول حقیقی دنبال صندوق‌های گران است یا ارزان؟</div>
+<div class="ask">Question: Is the market buying funds expensive or cheap, and where?</div>
 
 <figure class="shot">
-<img src="assets/screens/money-map.webp" alt="نقشه‌ی پول">
-<figcaption>شکل ۵ — محور افقی حباب، محور عمودی ورود پول حقیقی امروز به نسبت خالص دارایی همان صندوق. چهار ربع چهار رفتار متفاوت را نشان می‌دهند.</figcaption>
+<img src="assets/screens/premium.webp" alt="Premium chart">
+<figcaption>Figure 4 — Each point is a fund: the horizontal axis is premium, the row is fund type, and point size is net assets. The short black line marks each row's median.</figcaption>
 </figure>
 
-این نمودار دو شاخص مالی را کنار هم می‌گذارد و به رفتار ترجمه‌شان می‌کند:
+- **Trader:** spots the outliers. The large points at −35% (Dara-1) and −30% (Palayesh) aren't arbitrage opportunities (they have redemption caps), and this chart shows them separately rather than folding them into an average.
+- **Portfolio manager:** compares each row's median against zero. A positive and rising median in equity funds is usually a sign of retail exuberance.
+- **The leveraged row is deliberately empty.** Their −18% "premium" is artificial (the published NAV isn't a per-unit value that's actually traded). Showing this number would mean showing an opportunity that doesn't exist ([details](05-financial-logic.md#finding-leveraged-fund-nav-isnt-comparable-to-price)).
+- **Why a scatter plot instead of an average per type?** A single average both hides the spread and gets dragged around by two specific funds. The spread of points is itself information.
 
-| ربع | معنی | برداشت |
+### 6. Money map and valuation
+
+<div class="ask">Question: Is retail money chasing expensive funds or cheap ones?</div>
+
+<figure class="shot">
+<img src="assets/screens/money-map.webp" alt="Money map">
+<figcaption>Figure 5 — The horizontal axis is premium, the vertical axis is today's retail net inflow relative to that same fund's net assets. The four quadrants represent four different behaviors.</figcaption>
+</figure>
+
+This chart places two financial metrics side by side and translates them into behavior:
+
+| Quadrant | Meaning | Takeaway |
 |---|---|---|
-| ورود پول با حباب | خرید با وجود گرانی | **هیجان**: ریسک اصلاح قیمت |
-| ورود پول با تخفیف | خرید ارزان | **فرصت‌یابی**: رفتار سالم‌تر |
-| خروج پول با تخفیف | فروش با وجود ارزانی | **ترس**: فشار فروش |
-| خروج پول با حباب | فروش در گرانی | **سودگیری** |
+| Inflow with a premium | Buying despite being expensive | **Exuberance**: correction risk |
+| Inflow with a discount | Buying cheap | **Bargain-hunting**: healthier behavior |
+| Outflow with a discount | Selling despite being cheap | **Fear**: selling pressure |
+| Outflow with a premium | Selling while expensive | **Profit-taking** |
 
-- **چرا ورود پول نسبت به دارایی و نه مبلغ خام؟** ۱۰ میلیارد تومان برای صندوق ۵۰ همتی ناچیز است و برای صندوق ۵۰۰ میلیاردی ۲٪ دارایی آن. نسبت، صندوق‌های کوچک و بزرگ را قابل مقایسه می‌کند.
-- **چرا فقط شش برچسب؟** برچسب روی همه‌ی نقطه‌ها نمودار را غیرقابل‌خواندن می‌کند. فقط شش صندوق با بیشترین جابه‌جایی پول برچسب دارند و باقی با tooltip خوانده می‌شوند.
-- حباب‌های بیش از ±۱۰٪ روی لبه‌ی نمودار می‌نشینند و حذف نمی‌شوند.
+- **Why net inflow relative to assets, and not the raw amount?** 10 billion toman is negligible for a 50-trillion-toman fund but 2% of assets for a 500-billion-toman one. The ratio makes small and large funds comparable.
+- **Why only six labels?** Labeling every point would make the chart unreadable. Only the six funds with the largest money movement are labeled; the rest are read via tooltip.
+- Premiums beyond ±10% are clamped to the chart's edge rather than dropped.
 
-### ۷. حباب بازار در طول زمان
+### 7. Market premium over time {#7-market-premium-over-time}
 
-<div class="ask">سؤال: بازار صندوق‌ها گران‌تر می‌شود یا ارزان‌تر؟</div>
+<div class="ask">Question: Is the fund market getting more expensive or cheaper?</div>
 
-دو خط روی یک محور درصد: **میانه‌ی حباب** (خط پیوسته) و **حباب وزنی با خالص دارایی** (خط‌چین). با کنترل بالای کارت بین «امروز» (دقیقه به دقیقه) و «روزانه» (پایان هر جلسه) جابه‌جا می‌شوید.
+Two lines on one percentage axis: **median premium** (solid line) and **net-asset-weighted premium** (dashed line). A control above the card switches between "Today" (minute by minute) and "Daily" (end of each session).
 
-- **معامله‌گر:** بالا رفتن پیوسته‌ی میانه در طول جلسه یعنی هیجان خرید در حال شکل گرفتن است. این همان چیزی است که نمودار حباب لحظه‌ای (بخش ۵) در یک عکس نمی‌تواند نشان دهد.
-- **مدیر پرتفوی:** فاصله‌ی دو خط را نگاه می‌کند. در داده‌ی ۱ مهر ۱۴۰۵ میانه −۰٫۵٪ و وزنی −۱۱٫۸٪ بود، که تقریباً تماماً از دو صندوق بزرگ پالایش و دارا یکم می‌آمد ([منطق مالی](05-financial-logic.md#حباب-میانه-یا-وزنی)). اگر این فاصله کم یا زیاد شود، رفتار صندوق‌های بزرگ از بقیه‌ی بازار جدا شده است.
-- **چرا خط‌چین برای وزنی؟** دو رنگ به‌تنهایی برای کوررنگی کافی نیست. نوع خط نشانه‌ی دوم است، و راهنما و برچسب انتهای هر خط هم نام آن را می‌گویند.
-- **محدودیت:** TSETMC تاریخچه‌ی NAV نمی‌دهد، پس نمای روزانه از اولین روزی که سرویس داده گرفته ساخته می‌شود. تا دو روز داده جمع نشده باشد، کارت به‌جای نمودار همین را توضیح می‌دهد.
+- **Trader:** a steadily rising median through the session means buying exuberance is building. This is exactly what the point-in-time premium chart (Section 5) can't show in a single snapshot.
+- **Portfolio manager:** watches the gap between the two lines. In the 1 Mehr 1405 data, the median was −0.5% while the weighted figure was −11.8%, almost entirely driven by the two large funds Palayesh and Dara-1 ([financial logic](05-financial-logic.md#premium-median-or-weighted)). When this gap narrows or widens, it means large funds are decoupling from the rest of the market.
+- **Why a dashed line for the weighted series?** Color alone isn't enough for color blindness. Line style is the second cue, and the legend and the label at each line's end both name it too.
+- **Limitation:** TSETMC doesn't provide NAV history, so the daily view is built starting from the first day the service collected data. Until at least two days have accumulated, the card explains this instead of showing a chart.
 
-### ۸. بازده در افق‌های مختلف
+### 8. Returns across horizons
 
-<div class="ask">سؤال: چه کسی جلو افتاد و چه کسی عقب ماند، در کدام افق؟</div>
-
-<figure class="shot half">
-<img src="assets/screens/returns.webp" alt="نقشه‌ی حرارتی بازده">
-<figcaption>شکل ۶ — ۲۵ صندوق بزرگ (بر اساس خالص دارایی) در پنج افق.</figcaption>
-</figure>
-
-- **مدیر پرتفوی:** ناسازگاری افق‌ها را می‌بیند. در این تصویر هفت صندوق اهرمی از ابتدای سال بین ۱۲۳٪ و ۲۰۱٪ بازده دارند اما در یک هفته‌ی اخیر ۸ تا ۱۳٪ ضرر کرده‌اند، یعنی روند میان‌مدت قوی با یک اصلاح کوتاه‌مدت.
-- **مهم‌ترین تصمیم: رنگ هر ستون جداگانه مقیاس شده است** (سقف رنگ = صدک ۹۰ همان افق). بازده یک روزه معمولاً کمتر از ۳٪ است و بازده از ابتدای سال بیش از ۱۰۰٪. با یک مقیاس مشترک، ستون یک روزه تماماً خاکستری دیده می‌شد. عدد داخل هر خانه نوشته شده، پس مقیاس جداگانه چیزی را پنهان نمی‌کند.
-- **چرا صدک ۹۰ و نه بیشینه؟** یک صندوق استثنایی (مثلاً +۲۷۷٪) با مقیاس بیشینه همه‌ی خانه‌های دیگر را کم‌رنگ می‌کرد.
-
-### ۹. ریسک و بازده، ۹۰ روز گذشته
-
-<div class="ask">سؤال: برای نوسانی که یک صندوق داد، بازده‌اش می‌ارزید؟</div>
-
-هر نقطه یک صندوق است: محور افقی نوسان سالانه‌شده‌ی بازده روزانه (انحراف معیار × √۲۵۲)، محور عمودی بازده همان ۹۰ روز، اندازه = خالص دارایی، رنگ = نوع صندوق.
-
-- **مدیر پرتفوی:** این نمودار الزام ششم پروژه را برای بعد ریسک تکمیل می‌کند؛ نقشه‌ی بازار و نقشه‌ی پول «کجا» را نشان می‌دهند، این نمودار «به چه قیمتی» را نشان می‌دهد. صندوقی که نوسان بالا و بازده نزدیک صفر دارد (گوشه‌ی پایین‌راست) برای نگهداری بلندمدت منطقی نیست، هر چقدر هم اسمش آشنا باشد.
-- **معامله‌گر:** صندوق‌های اهرمی معمولاً سمت راست نمودار (نوسان زیاد) می‌نشینند؛ فاصله‌ی عمودی‌شان از هم نشان می‌دهد کدام اهرم این نوسان را واقعاً به بازده تبدیل کرده.
-- **چرا ۹۰ روز و نه کل تاریخچه؟** نوسان یک پنجره‌ی کوتاه‌تر به رژیم فعلی بازار نزدیک‌تر است؛ ۹۰ روز هم برای پایداری آماری کافی است و هم قدیمی نیست.
-- **محدودیت:** زیر ۵ روز قیمت پایانی، نوسان قابل‌محاسبه نیست و صندوق از نمودار (نه از جدول) کنار گذاشته می‌شود؛ روی صندوق‌های تازه یا صندوق‌هایی که هنوز تاریخچه‌شان پر نشده صدق می‌کند.
-
-### ۱۰. کیفیت داده‌ی امروز
-
-<div class="ask">سؤال: چقدر می‌توان به اعداد این صفحه اعتماد کرد؟</div>
+<div class="ask">Question: Who's ahead and who's behind, and over what horizon?</div>
 
 <figure class="shot half">
-<img src="assets/screens/quality.webp" alt="کارت کیفیت داده">
-<figcaption>شکل ۷ — کامل بودن جلسه، سهم هر پرچم کیفیت از ردیف‌های امروز، و رخدادهای اعتبارسنجی همراه با اقدامی که پیش‌پردازش انجام داد.</figcaption>
+<img src="assets/screens/returns.webp" alt="Returns heatmap">
+<figcaption>Figure 6 — The 25 largest funds (by net assets) across five horizons.</figcaption>
 </figure>
 
-این کارت الزام سوم پروژه، یعنی «اطمینان از تکمیل بودن و صحت اطلاعات پس از هر دریافت»، را برای کاربر پنل قابل‌دیدن می‌کند. پرچم‌ها سه دسته‌اند و هر کدام رنگ و برچسب خود را دارد:
+- **Portfolio manager:** sees inconsistency across horizons. In this image, seven leveraged funds returned between 123% and 201% year-to-date but lost 8 to 13% over the past week — a strong medium-term trend with a short-term correction.
+- **The most important decision: each column's color is scaled independently** (the color ceiling is the 90th percentile for that horizon). A one-day return is usually under 3%, and a year-to-date return can exceed 100%. With a shared scale, the one-day column would look entirely gray. The number is printed inside every cell, so a separate scale per column hides nothing.
+- **Why the 90th percentile and not the maximum?** One exceptional fund (say, +277%) would, with a max-based scale, wash out every other cell.
 
-- **اطلاع** (خاکستری): وضعیت عادی و قابل انتظار، مثل «NAV قدیمی» بعد از بسته شدن بازار.
-- **اصلاح‌شده** (آبی): پیش‌پردازش مقداری را ترمیم کرده است، مثل تکمیل یک دقیقه‌ی جاافتاده از دقیقه‌ی قبل.
-- **هشدار** (زرد): مقدار باید با احتیاط خوانده شود، مثل ناهمخوانی حجم حقیقی/حقوقی.
+### 9. Risk and the trailing 90-day return {#9-risk-and-trailing-90-day-return}
 
-در جدول صندوق‌ها هم هر ردیف یک نشان «n پرچم» دارد که با نگه داشتن نشانگر روی آن فهرست فارسی پرچم‌ها دیده می‌شود.
+<div class="ask">Question: For the volatility a fund delivered, was its return worth it?</div>
 
-### ۱۱. جدول صندوق‌ها و صفحه‌ی هر صندوق
+Each point is a fund: the horizontal axis is the annualized volatility of daily returns (standard deviation × √252), the vertical axis is the return over that same 90-day window, size = net assets, color = fund type.
 
-**وضعیت نماد.** صندوقی که در TSETMC «مجاز» نیست (مثلاً «مجاز-متوقف» یا «ممنوع») در جدول و صفحه‌ی خودش یک برچسب قرمز با همان عنوان TSETMC دارد و «محفوظ» یا «تحت نظر» برچسب نارنجی. بالای داشبورد هم یک نوار این صندوق‌ها را نام می‌برد، چون قیمت و حباب صندوق متوقف مال آخرین معامله‌ی پیش از توقف است و بدون این برچسب شبیه صندوقی آرام به نظر می‌رسد. وضعیت هر صندوق حداکثر ۵ دقیقه قدیمی است و زمان آخرین بررسی در راهنمای برچسب آمده است.
+- **Portfolio manager:** this chart completes the project's sixth requirement for the risk dimension; the market map and money map show "where," this chart shows "at what cost." A fund with high volatility and a return near zero (bottom-right corner) doesn't make sense to hold long-term, no matter how familiar its name is.
+- **Trader:** leveraged funds usually sit on the right side of the chart (high volatility); their vertical spread shows which leverage actually converted that volatility into return.
+- **Why 90 days and not the full history?** A shorter window for volatility stays closer to the market's current regime; 90 days is also enough for statistical stability without being stale.
+- **Limitation:** under 5 days of closing prices, volatility can't be computed, and the fund is dropped from the chart (not from the table); this applies to new funds or funds whose history hasn't filled in yet.
 
-جدول همه‌ی صندوق‌های خانواده‌ی سهامی را با همه‌ی شاخص‌ها نشان می‌دهد: قابل مرتب‌سازی روی هر ستون، قابل جستجو با نماد یا نام، و با صفحه‌کلید قابل پیمایش. مقدارهای نامعتبر (مثل حباب اهرمی‌ها) با «—» نشان داده می‌شوند و در مرتب‌سازی همیشه آخر می‌آیند.
+### 10. Today's data quality
+
+<div class="ask">Question: How much can the numbers on this page be trusted?</div>
+
+<figure class="shot half">
+<img src="assets/screens/quality.webp" alt="Data quality card">
+<figcaption>Figure 7 — Session completeness, each quality flag's share of today's rows, and validation events along with the action preprocessing took.</figcaption>
+</figure>
+
+This card makes the project's third requirement — "verifying completeness and correctness of the data after every fetch" — visible to the dashboard user. Flags fall into three categories, each with its own color and label:
+
+- **Info** (gray): a normal, expected state, such as "stale NAV" after the market closes.
+- **Corrected** (blue): preprocessing repaired a value, such as filling a missing minute from the previous one.
+- **Warning** (yellow): a value should be read with caution, such as a retail/institutional volume mismatch.
+
+In the fund table, each row also carries an "n flags" badge; hovering over it shows the list of flags.
+
+### 11. Fund table and the per-fund page
+
+**Symbol status.** A fund that isn't "authorized" ("مجاز") on TSETMC (for example, "authorized-halted" or "banned") gets a red badge in the table and on its own page with that same TSETMC label, and "reserved" or "under review" get an orange badge. A banner at the top of the dashboard also names these funds, because a halted fund's price and premium are from its last trade before the halt, and without this badge it would look like just a quiet fund. Each fund's status is at most 5 minutes old, and the time of the last check appears in the badge's tooltip.
+
+The table shows every equity-family fund with all its metrics: sortable on any column, searchable by ticker or name, and keyboard-navigable. Invalid values (such as leveraged funds' premium) are shown as "—" and always sort last.
 
 <figure class="shot">
-<img src="assets/screens/fund-detail.webp" alt="صفحه‌ی صندوق">
-<figcaption>شکل ۸ — صفحه‌ی صندوق «پالایش»: شاخص‌های لحظه‌ای، قیمت و NAV درون‌روز (روی یک محور، به تومان)، تاریخچه‌ی قیمت و ورود پول، و بازده در پنج افق.</figcaption>
+<img src="assets/screens/fund-detail.webp" alt="Fund page">
+<figcaption>Figure 8 — The "Palayesh" fund page: real-time metrics, intraday price and NAV (on one axis, in toman), price and net-inflow history, and returns across five horizons.</figcaption>
 </figure>
 
-در نمودار درون‌روز صفحه‌ی صندوق، **قیمت و NAV روی یک محورند** چون هر دو تومان‌اند. فاصله‌ی دو خط همان حباب است و بیننده آن را مستقیم می‌بیند. اگر collector دیر روشن شده باشد، قیمتِ پیش از آن از ریز معاملات بازسازی و **خط‌چین** رسم می‌شود ([ADR 0012](adr/0012-intraday-backfill.md)). خط‌چین به اولین نقطه‌ی زنده وصل است، NAV در آن بخش نیست، و راهنمای روی نمودار می‌گوید «بازسازی از ریز معاملات»: بیننده باید بداند کدام بخش را دیده‌ایم و کدام را بازسازی کرده‌ایم. در نمودار تاریخچه‌ی روزانه قیمت و ورود پول دو واحد متفاوت‌اند، پس باز هم دو پنل روی یک محور زمان داریم. بازه‌ی آن (۱ ماه، ۳ ماه، ۶ ماه، ۱ سال یا همه) با یک کنترل بالای کارت انتخاب می‌شود. در حالت «همه» زیر نمودار نوشته می‌شود چند روز تاریخچه ذخیره شده و چطور می‌توان آن را بلندتر کرد (`backfill --days N`)، چون collector به‌طور پیش‌فرض ۴۰۰ روز معاملاتی را نگه می‌دارد.
+In the fund page's intraday chart, **price and NAV share one axis** because both are in toman. The gap between the two lines is the premium, and the viewer sees it directly. If the collector came up late, the price before that point is reconstructed from tick-level trades and drawn as a **dashed line** ([ADR 0012](adr/0012-intraday-backfill.md)). The dashed segment connects to the first live point, has no NAV there, and the chart's legend reads "reconstructed from tick data": the viewer should know which part was actually observed and which was reconstructed. In the daily history chart, price and net inflow are two different units, so again we use two panels on one shared time axis. Its window (1 month, 3 months, 6 months, 1 year, or all) is chosen with a control above the card. In "all" mode, the text below the chart states how many days of history are stored and how to extend it (`backfill --days N`), since the collector keeps 400 trading days by default.
 
-### ۱۲. مستندات، داخل همین پنل
+### 12. Documentation, inside the dashboard itself
 
-<div class="ask">سؤال: همین همه‌ی این تصمیم‌ها و جزئیات مالی کجا مستند شده؟</div>
+<div class="ask">Question: Where are all these decisions and financial details documented?</div>
 
 <figure class="shot">
-<img src="assets/screens/docs-tab.webp" alt="تب مستندات">
-<figcaption>شکل ۹ — همین ۱۲ سند و همه‌ی ADRها، رندر‌شده از همان فایل‌های <code>docs/*.md</code>، بدون خلاصه‌سازی یا سرویس جدا.</figcaption>
+<img src="assets/screens/docs-tab.webp" alt="Documentation tab">
+<figcaption>Figure 9 — These same 12 documents and every ADR, rendered from the same <code>docs/*.md</code> files, with no summarizing and no separate service.</figcaption>
 </figure>
 
-- **یک لینک، نه یک تب محتوایی.** «مستندات» کنار عنوان بالای صفحه است، نه کنار تب‌های نمای‌کلی/ارزش‌گذاری/جریان‌پول/بازده/جدول، چون صفحه‌ای مستقل است نه یکی از بخش‌های داشبورد؛ با آن سوییچ می‌کنید، کاشی‌های شاخص، نوار وضعیت جلسه و انتخابگر جلسه‌ی داشبورد را با خودش نمی‌آورد.
-- **همان محتوا، نه خلاصه‌ی آن.** فایل‌های `docs/*.md` و `docs/adr/*.md` با یک پیش‌پردازش یک‌باره از نحو MkDocs (ادمونیشن‌ها، grid-cardها، ارجاع‌های `assets/diagrams/*.svg` که به‌صورت خام inline می‌شوند) به Markdown+HTML ساده تبدیل و در `web/src/assets/docs-content/` ذخیره شده‌اند؛ پنل آن‌ها را با `react-markdown` رندر می‌کند، نه یک نسخه‌ی دست‌نویس کوتاه‌تر.
-- **باندل جدا.** حجم react-markdown و متن مستندات با `React.lazy` جدا لود می‌شود، پس بار اول داشبورد سنگین‌تر نمی‌شود.
+- **A link, not a content tab.** "Documentation" sits next to the page title at the top, not alongside the overview/valuation/money-flow/returns/table tabs, because it's a standalone page, not one of the dashboard's sections; switching to it doesn't bring along the KPI tiles, the session status bar, or the dashboard's session picker.
+- **The same content, not a summary of it.** The `docs/*.md` and `docs/adr/*.md` files go through a one-time preprocessing step out of MkDocs syntax (admonitions, grid cards, `assets/diagrams/*.svg` references inlined raw) into plain Markdown+HTML and are stored in `web/src/assets/docs-content/`; the dashboard renders them with `react-markdown`, not a shorter hand-written version.
+- **A separate bundle.** The weight of react-markdown and the documentation text is lazy-loaded with `React.lazy`, so the dashboard's initial load doesn't get any heavier.
 
-## چه چیزهایی عمداً ساخته نشد
+## What was deliberately not built
 
-| ایده | چرا نه (فعلاً) |
+| Idea | Why not (for now) |
 |---|---|
-| نمودار شمعی قیمت هر صندوق | برای تحلیل تکنیکال یک صندوق است، نه تصویر بزرگ بازار. سایت‌های کارگزاری آن را بهتر دارند. |
-| ماتریس همبستگی صندوق‌ها | با ۱۵۹ صندوق، ماتریس ۱۵۹×۱۵۹ خواندنی نیست. نسخه‌ی مفید آن (خوشه‌بندی) در ۷ روز نمی‌گنجد. |
-| ترکیب پرتفوی صندوق‌ها (صنایع) | TSETMC آن را نمی‌دهد و منبعش (گزارش‌های ماهانه‌ی کدال) نیاز به استخراج جداگانه دارد. |
-| هشدار قیمت و واچ‌لیست | نیاز به حساب کاربری دارد، که از محدوده‌ی این پروژه خارج است. |
-| پیش‌بینی | پنل باید آنچه هست را درست نشان دهد. یک پیش‌بینی بی‌پشتوانه به تصمیم بد اعتبار می‌دهد. |
+| Candlestick chart per fund | That's for technical analysis of a single fund, not the market's big picture. Brokerage sites already do it better. |
+| Fund correlation matrix | With 159 funds, a 159×159 matrix isn't readable. Its useful form (clustering) doesn't fit in 7 days. |
+| Fund portfolio composition (by industry) | TSETMC doesn't provide it, and its source (Codal's monthly reports) needs a separate extraction pipeline. |
+| Price alerts and watchlists | They require user accounts, which is out of scope for this project. |
+| Forecasting | The dashboard should accurately show what is. An unfounded forecast lends credibility to a bad decision. |
 
-## پیاده‌سازی
+## Implementation
 
 <div class="grid cards two" markdown>
 
 -   :material-react: __React 19 + Vite + TypeScript strict__
 
-    دو نما (داشبورد و صفحه‌ی صندوق) با مسیریابی hash. به کتابخانه‌ی router یا state manager نیازی نبود: یک hook کوچک `useQuery` و یک hook `useLiveTicks` کافی است ([ADR 0008](adr/0008-web-panel.md)).
+    Two views (dashboard and fund page) with hash-based routing. No router or state-management library was needed: a small `useQuery` hook and a `useLiveTicks` hook are enough ([ADR 0008](adr/0008-web-panel.md)).
 
--   :material-chart-box-outline: __ECharts با رندر SVG__
+-   :material-chart-box-outline: __ECharts with SVG rendering__
 
-    متن فارسی با فونت Vazirmatn درست شکل می‌گیرد و تصویر در هر بزرگ‌نمایی تیز می‌ماند. فقط پنج نوع نمودار ثبت شده‌اند، پس حجم ECharts از ۱٫۱ مگابایت به ۵۹۶ کیلوبایت (۲۰۴ KB gzip) رسیده است.
+    Persian text with the Vazirmatn font shapes correctly, and the image stays sharp at any zoom level. Only five chart types are registered, so ECharts' footprint dropped from 1.1 MB to 596 KB (204 KB gzip).
 
--   :material-function-variant: __option هر نمودار یک تابع خالص است__
+-   :material-function-variant: __Each chart's option is a pure function__
 
-    `charts/options.ts` از (داده، توکن‌های رنگ) option می‌سازد، پس بدون مرورگر تست واحد دارد: کنار گذاشتن اهرمی‌ها، چسباندن حباب‌های بزرگ به لبه، گروه‌بندی نقشه و مقیاس رنگ.
+    `charts/options.ts` builds the chart option from (data, color tokens), so it has unit tests with no browser involved: excluding leveraged funds, clamping large premiums to the edge, map grouping, and color scaling.
 
--   :material-server-network: __nginx هم‌مبدأ__
+-   :material-server-network: __Same-origin nginx__
 
-    کانتینر `web` فایل‌های ساخته‌شده را سرو می‌کند و `/api` را به FastAPI می‌فرستد، پس CORS در محیط اجرا لازم نیست. برای SSE بافر nginx خاموش است، فایل‌های hash‌دار یک سال کش می‌شوند و `index.html` همیشه بازبینی می‌شود.
+    The `web` container serves the built files and proxies `/api` to FastAPI, so CORS isn't needed at runtime. nginx buffering is turned off for SSE, hashed files are cached for a year, and `index.html` is always revalidated.
 
 </div>
 
-### چرخه‌ی به‌روزرسانی زنده
+### The live-update cycle
 
-1. کالکتور یک چرخه را در ClickHouse ثبت می‌کند و تیک جدید را در Redis منتشر می‌کند.
-2. API آن را به‌صورت رویداد `tick` روی `/api/v1/stream` به همه‌ی مرورگرهای باز می‌فرستد.
-3. پنل شمارنده‌ی تیک را یکی زیاد می‌کند و هر کارت داده‌ی خودش را دوباره می‌گیرد.
-4. مرورگر با `If-None-Match` درخواست می‌دهد. اگر داده‌ای تغییر نکرده باشد، جواب `304` بدون بدنه است. اگر تغییر کرده باشد، جواب از کش Redis می‌آید ([ADR 0006](adr/0006-caching.md)).
+1. The collector records a cycle in ClickHouse and publishes the new tick on Redis.
+2. The API forwards it as a `tick` event on `/api/v1/stream` to every open browser.
+3. The dashboard increments its tick counter and each card re-fetches its own data.
+4. The browser requests with `If-None-Match`. If nothing changed, the response is a bodyless `304`; if it changed, the response is served from the Redis cache ([ADR 0006](adr/0006-caching.md)).
 
-بیرون از ساعات بازار هیچ تیکی نمی‌آید، پس پنل هیچ درخواستی هم نمی‌فرستد. یک نوار بالای صفحه می‌گوید داده‌ها مربوط به آخرین جلسه‌اند.
+Outside market hours no tick arrives, so the dashboard sends no requests either. A banner at the top of the page states that the data is from the last session.
 
-### دسترس‌پذیری
+### Accessibility
 
-- هر نمودار `role="img"` و یک توضیح فارسی (`aria-label`) دارد.
-- راهنمای رنگ (legend) در HTML است و متنش با رنگ متن نوشته می‌شود، نه با رنگ سری.
-- ردیف‌های جدول با Tab و Enter باز می‌شوند.
-- پوسته‌ی تیره تغییر خودکار رنگ‌ها نیست: هر رنگ برای زمینه‌ی تیره جداگانه انتخاب شده است.
+- Every chart has `role="img"` and a descriptive `aria-label`.
+- The color legend is plain HTML, and its text is rendered in the text color, not the series color.
+- Table rows open via Tab and Enter.
+- Dark mode isn't an automatic color inversion: every color was chosen separately for the dark background.
 
-## بازبینی روز ۷: جهت محور زمان
+## Day 7 review: time-axis direction {#day-7-review-time-axis-direction}
 
-**تصمیم اول (روز ۵):** چون پنل راست‌به‌چپ است، محور زمان هم برعکس شد تا جدیدترین نقطه در انتهای مسیر خواندن، یعنی سمت چپ، باشد.
+**Initial decision (Day 5):** because the dashboard is right-to-left, the time axis was flipped too, so the newest point would land at the end of the reading path — the left side.
 
-**بازخورد:** کاربر خواست نمودارها با تاریخ افزایشی از چپ به راست باشند. این بازخورد درست است: جهت محور زمان یک **قرارداد حوزه‌ی مالی** است، نه یک ویژگی زبان. معامله‌گر ایرانی هر روز نمودار قیمت را در TSETMC، کارگزاری‌ها و پلتفرم‌های تحلیل تکنیکال از چپ به راست می‌بیند. نمودار برعکس باعث می‌شود «روند صعودی» در نگاه اول نزولی خوانده شود، که برای ابزاری که هدفش «فهم درست تصویر بزرگ» است، هزینه‌ی زیادی است.
+**Feedback:** a user asked for charts with dates increasing left to right. This feedback is correct: time-axis direction is a **domain convention of finance**, not a language feature. An Iranian trader sees price charts left-to-right every day on TSETMC, brokerage platforms, and technical-analysis tools. A reversed chart makes an "uptrend" read as a downtrend at first glance, which is a steep cost for a tool whose whole purpose is "getting the big picture right."
 
-**تغییر:**
+**Change:**
 
-- همه‌ی محورهای زمانی (ورود پول درون‌روز، ورود پول روزانه، قیمت و NAV درون‌روز، تاریخچه‌ی روزانه‌ی صندوق) از چپ به راست هستند و محور مقدار سمت چپ است.
-- ستون‌های نقشه‌ی حرارتی بازده هم از افق کوتاه به بلند، از چپ به راست چیده شده‌اند (۱ روز … از ابتدای سال).
-- سازنده‌های option داده را خودشان به ترتیب زمانی مرتب می‌کنند (`chronological`) و به ترتیب پاسخ API تکیه نمی‌کنند. یک تست تضمین می‌کند که هیچ محور زمانی `inverse` نباشد.
-- متن‌ها، جدول‌ها، راهنماها و tooltipها همچنان راست‌به‌چپ هستند.
+- Every time axis (intraday net inflow, daily net inflow, intraday price and NAV, fund daily history) now runs left to right, with the value axis on the left.
+- The returns heatmap's columns are also ordered short to long horizon, left to right (1 day … year-to-date).
+- The option builders sort the data chronologically themselves (`chronological`) rather than relying on the API's response order. A test guarantees no time axis is ever `inverse`.
+- Text, tables, legends, and tooltips remain right-to-left.
 
-## بازبینی پس از روز ۷: حباب در طول زمان، تعطیلات و سلامت collector
+## Post-day-7 review: premium over time, holidays, and collector health
 
-- **نمودار تازه:** «حباب بازار در طول زمان» ([بخش ۷](#۷-حباب-بازار-در-طول-زمان)). کاشی «میانه‌ی حباب» هم حباب وزنی را کنار میانه نشان می‌دهد.
-- **روز تعطیل:** اگر امروز تعطیل رسمی یا تعطیلی مشاهده‌شده باشد، نوار بالای صفحه نام آن را می‌گوید، مثلاً «امروز تعطیل است (اربعین)». پس کاربر می‌داند چرا داده‌ی امروز نیامده است.
-- **collector متوقف:** اگر بازار باز باشد ولی داده‌ی تازه نیاید، نشانگر بالای صفحه به «داده‌ی قدیمی» تغییر می‌کند و نواری تعداد دقیقه‌ها و علت محتمل (VPN) را می‌گوید. پنل این را هر دقیقه از `/api/v1/health` می‌پرسد، چون collector خاموش تیکی نمی‌فرستد که پنل را بیدار کند.
+- **New chart:** "Market premium over time" ([Section 7](#7-market-premium-over-time)). The "Median premium" tile now also shows the weighted premium alongside the median.
+- **Holiday:** if today is an official holiday or an observed closure, the banner at the top of the page names it, e.g. "Today is a holiday (Arbaeen)." So the user knows why today's data hasn't arrived.
+- **Collector stopped:** if the market is open but no fresh data arrives, the indicator at the top of the page switches to "stale data" and a banner states the number of minutes and the likely cause (VPN). The dashboard checks this every minute via `/api/v1/health`, since a collector that's down sends no tick to wake the dashboard.

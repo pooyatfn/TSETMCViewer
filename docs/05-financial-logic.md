@@ -1,109 +1,109 @@
-# منطق مالی
+# Financial Logic
 
-<p class="lead">شاخص‌هایی که از داده‌ی خام ساخته می‌شوند: تعریف دقیق هر کدام، دلیل انتخابش، و اینکه به چه سؤالی از معامله‌گر یا مدیر پرتفوی پاسخ می‌دهد. همه‌ی فرمول‌ها در <code>domain/metrics.py</code> هستند و تست واحد دارند.</p>
+<p class="lead">The metrics built from raw data: each one's precise definition, why it was chosen, and which question it answers for a trader or a portfolio manager. All formulas live in <code>domain/metrics.py</code> and have unit tests.</p>
 
 <div class="kpis">
-  <div class="kpi"><b>۱۵۹</b><span>صندوق سهامی، شاخصی، بخشی و اهرمی</span></div>
-  <div class="kpi"><b>۳۷۵ همت</b><span>خالص دارایی تخمینی (پایان ۱ مهر ۱۴۰۵)</span></div>
-  <div class="kpi"><b>−۰٫۵٪</b><span>میانه‌ی حباب (بدون صندوق‌های اهرمی)</span></div>
-  <div class="kpi warn"><b>−۱۸٪</b><span>«حباب» ساختگی صندوق‌های اهرمی</span></div>
+  <div class="kpi"><b>159</b><span>equity, index, sector and leveraged funds</span></div>
+  <div class="kpi"><b>375T toman</b><span>estimated net asset value (end of 1 Mehr 1405)</span></div>
+  <div class="kpi"><b>−0.5%</b><span>median premium (excluding leveraged funds)</span></div>
+  <div class="kpi warn"><b>−18%</b><span>artificial "premium" of leveraged funds</span></div>
 </div>
 
-!!! info "داده‌ی این صفحه"
-    اعداد این صفحه از داده‌ی واقعی TSETMC در پایان جلسه‌ی ۱ مهر ۱۴۰۵ آمده‌اند: فهرست کامل ۳۳۳ صندوق، NAV همه‌ی آن‌ها و ۴۰۰ روز تاریخچه، که با `scripts/capture_offhours.py` ضبط و از همان pipeline سرویس عبور داده شدند. «همت» یعنی هزار میلیارد تومان (۱۰<sup>۱۳</sup> ریال).
+!!! info "Data on this page"
+    The numbers on this page come from real TSETMC data at the close of the session on 1 Mehr 1405: the full list of 333 funds, NAV for all of them, and 400 days of history, captured with `scripts/capture_offhours.py` and run through the same service pipeline. "T toman" means trillion toman (10<sup>13</sup> Rials).
 
-## شاخص‌ها
+## Metrics
 
-| شاخص | فرمول | واحد | سؤالی که جواب می‌دهد |
+| Metric | Formula | Unit | Question it answers |
 |---|---|---|---|
-| **بازده روزانه** | پایانی ÷ پایانی دیروز − ۱ | ٪ | امروز صندوق چه کرد؟ |
-| **حباب (NAV premium)** | پایانی ÷ NAV ابطال − ۱ | ٪ | خریدار چقدر بیشتر (یا کمتر) از ارزش دارایی‌ها می‌پردازد؟ |
-| **خالص دارایی (AUM)** | NAV ابطال × تعداد واحد صادرشده | ریال | صندوق چقدر بزرگ است؟ |
-| **سهم از بازار صندوق‌ها** | AUM صندوق ÷ مجموع AUM | ٪ | وزن صندوق در تصویر کلی چقدر است؟ |
-| **ورود پول حقیقی** | ارزش خرید حقیقی − ارزش فروش حقیقی | ریال | پول مردم به کدام صندوق می‌رود و از کدام خارج می‌شود؟ |
-| **قدرت خریدار حقیقی** | (خرید حقیقی ÷ تعداد خریدار) ÷ (فروش حقیقی ÷ تعداد فروشنده) | نسبت | خریدارها درشت‌ترند یا فروشنده‌ها؟ |
-| **گردش معاملات** | ارزش معاملات ÷ خالص دارایی | ٪ | صندوق چقدر نقدشونده است؟ آیا امروز غیرعادی معامله شد؟ |
-| **بازده دوره‌ای** | پایانی امروز ÷ پایانی مبدأ − ۱ برای ۱ هفته، ۱ ماه، ۳ ماه و از ابتدای سال | ٪ | روند میان‌مدت کدام صندوق‌ها بهتر بوده؟ |
+| **Daily return** | close ÷ previous close − 1 | % | What did the fund do today? |
+| **Premium (NAV premium)** | close ÷ redemption NAV − 1 | % | How much more (or less) than asset value is the buyer paying? |
+| **Net asset value (AUM)** | redemption NAV × units outstanding | Rial | How big is the fund? |
+| **Share of fund market** | fund AUM ÷ total AUM | % | How much weight does the fund carry in the overall picture? |
+| **Retail money inflow** | individual buy value − individual sell value | Rial | Where is retail money going, and where is it leaving? |
+| **Retail buyer strength** | (individual buy value ÷ buyer count) ÷ (individual sell value ÷ seller count) | ratio | Are buyers bigger players than sellers, or the reverse? |
+| **Turnover** | trade value ÷ net asset value | % | How liquid is the fund? Was today's trading unusual? |
+| **Periodic return** | today's close ÷ origin close − 1, for 1 week, 1 month, 3 months and year-to-date | % | Which funds have trended better over the medium term? |
 
-## حباب: مهم‌ترین شاخص صندوق قابل معامله
+## Premium: The Most Important Metric for a Tradable Fund
 
-صندوق ETF دو قیمت دارد: **قیمت بازار** که خریدار و فروشنده تعیین می‌کنند، و **NAV** که ارزش واقعی دارایی‌های پشت هر واحد است. اختلاف این دو، حباب است:
+An ETF has two prices: the **market price**, set by buyers and sellers, and **NAV**, the actual value of the assets behind each unit. The difference between the two is the premium:
 
-- **حباب مثبت:** خریدار بیش از ارزش دارایی‌ها پول می‌دهد. معمولاً نشانه‌ی هیجان خرید است، و بازارگردان یا صدور واحد جدید معمولاً آن را از بین می‌برد.
-- **حباب منفی:** واحد صندوق ارزان‌تر از دارایی‌هایش معامله می‌شود. این نشانه‌ی فشار فروش است، یا (در صندوق‌های خاص) نشانه‌ی محدودیت ابطال.
+- **Positive premium:** the buyer is paying more than the underlying assets are worth. This usually signals buying excitement, and a market maker or new unit issuance will typically close the gap.
+- **Negative premium:** the fund's units trade below their asset value. This signals selling pressure, or, for certain funds, redemption restrictions.
 
-مبنای محاسبه **NAV ابطال** است، نه NAV صدور، چون فروشنده‌ای که واحدش را ابطال کند همین مبلغ را می‌گیرد، پس این کف ارزش واحد است.
+The calculation is based on **redemption NAV**, not subscription NAV, because a seller who redeems their units gets exactly that amount — making it the floor value of a unit.
 
 <figure class="diagram">
-<img src="assets/diagrams/premium-by-type.svg" alt="حباب صندوق‌ها به تفکیک نوع">
-<figcaption>شکل ۱ — حباب همه‌ی صندوق‌ها به تفکیک نوع (داده‌ی واقعی). صندوق‌های سهامی، بخشی و شاخصی دور صفر جمع شده‌اند. صندوق‌های اهرمی همگی حدود −۱۸٪ هستند: یک خطای ساختاری، نه یک فرصت خرید.</figcaption>
+<img src="assets/diagrams/premium-by-type.svg" alt="Fund premium by type">
+<figcaption>Figure 1 — Premium across all funds, broken down by type (real data). Equity, sector and index funds cluster around zero. Leveraged funds all sit around −18%: a structural artifact, not a buying opportunity.</figcaption>
 </figure>
 
-### یافته: NAV صندوق‌های اهرمی قابل مقایسه با قیمت نیست
+### Finding: Leveraged Fund NAV Isn't Comparable to Price
 
-در داده‌ی واقعی، **۷ صندوق از ۹ صندوق اهرمی** (اهرم، شتاب، بیدار، موج، نارنج اهرم، توان، جهش) «حبابی» بین −۱۶٫۷٪ و −۱۹٫۲٪ دارند. این هم‌خوانی بین صندوق‌هایی با مدیران و دارایی‌های متفاوت نشان می‌دهد که علت در **تعریف NAV** است، نه در بازار.
+In real data, **7 of 9 leveraged funds** (Ahrom, Shetab, Bidar, Mowj, Narenj-e-Ahrom, Tavan, Jahesh) show a "premium" between −16.7% and −19.2%. This consistency across funds with different managers and holdings shows the cause lies in the **NAV definition**, not the market.
 
-صندوق اهرمی دو نوع واحد دارد: **واحد ممتاز** (سرمایه‌گذار با سود تضمین‌شده) و **واحد عادی** (همان واحدی که در بورس معامله می‌شود و بازده اهرمی دارد). NAV منتشرشده در TSETMC با ارزش واحد عادی برابر نیست، پس مقایسه‌ی قیمت واحد عادی با آن معنی ندارد.
+A leveraged fund has two unit classes: **preferred units** (investors with a guaranteed return) and **ordinary units** (the units actually traded on the exchange, which carry the leveraged return). The NAV published on TSETMC is not equal to the ordinary unit's value, so comparing the ordinary unit's price against it is meaningless.
 
-!!! danger "تصمیم"
-    `nav_premium()` برای صندوق‌های اهرمی **`null`** برمی‌گرداند، و پنل به‌جای عدد، «قابل محاسبه نیست» نمایش می‌دهد. نمایش −۱۸٪ به معامله‌گر یعنی نشان دادن فرصت خریدی که وجود ندارد. خالص دارایی این صندوق‌ها هم با احتیاط و با برچسب «تقریبی» نمایش داده می‌شود.
+!!! danger "Decision"
+    `nav_premium()` returns **`null`** for leveraged funds, and the panel shows "not computable" instead of a number. Showing −18% to a trader would imply a buying opportunity that doesn't exist. These funds' net asset value is also shown with caution, labeled "approximate".
 
-**دو صندوق «دارا یکم» (−۳۴٪) و «پالایش» (−۳۰٪)** هم تخفیف بزرگی دارند، اما این تخفیف واقعی است. این دو ETF واگذاری سهام دولتی هستند و سال‌هاست زیر NAV معامله می‌شوند. آن‌ها حذف نمی‌شوند، ولی شاخص کلان بازار از **میانه** ساخته می‌شود تا این دو صندوق بزرگ تصویر کلی را منحرف نکنند (`robust_center`).
+**Two funds, "Dara Yekom" (−34%) and "Palayesh" (−30%)**, also carry a large discount, but this one is real. Both are government-divestiture ETFs that have traded below NAV for years. They aren't excluded, but the market-wide aggregate is built from the **median** so these two large funds don't skew the overall picture (`robust_center`).
 
-## ورود پول حقیقی و ارزش تخمینی
+## Retail Money Flow and Estimated Value
 
-TSETMC در طول روز فقط **حجم** معاملات حقیقی و حقوقی را می‌دهد، نه ارزش ریالی آن‌ها را. ارزش درون‌روز این‌طور تخمین زده می‌شود:
+During the trading day, TSETMC only provides the **volume** of individual and institutional trades, not their Rial value. Intraday value is estimated as follows:
 
 ```text
-ارزش خرید حقیقی ≈ حجم خرید حقیقی × (ارزش کل معاملات ÷ حجم کل معاملات)
+individual buy value ≈ individual buy volume × (total trade value ÷ total trade volume)
 ```
 
-یعنی حجم ضرب در میانگین موزون قیمت امروز. پس از بسته شدن بازار، مقدار **رسمی** از `GetClientTypeHistory` جایگزین می‌شود. هر دو نسخه نگه داشته می‌شوند و پرچم `FLOW_VALUE_ESTIMATED` نسخه‌ی تخمینی را مشخص می‌کند. نمودار ورود پول روزانه، روزهای گذشته را با مقدار رسمی و امروز را با علامت «تخمینی» نشان می‌دهد.
+That is, volume multiplied by today's volume-weighted average price. After market close, this is replaced by the **official** figure from `GetClientTypeHistory`. Both versions are kept, and the `FLOW_VALUE_ESTIMATED` flag marks the estimated one. The daily money-flow chart shows past days with the official value and today labeled as "estimated".
 
-!!! tip "بررسی صحت روی داده‌ی واقعی"
-    در تاریخچه‌ی رسمی «اطلس» برای ۱ مهر: خرید حقیقی ۷٬۷۶۸٬۷۴۴ + خرید حقوقی ۱٬۸۱۶٬۶۱۴ = **۹٬۵۸۵٬۳۵۸** واحد، که دقیقاً برابر حجم کل معاملات همان روز است. بررسی `client_volume_mismatch` در [کیفیت داده](04-data-quality.md) روی همین اتحاد بنا شده است.
+!!! tip "Sanity check against real data"
+    In the official history for "Atlas" on 1 Mehr: individual buys 7,768,744 + institutional buys 1,816,614 = **9,585,358** units, which exactly matches that day's total trade volume. The `client_volume_mismatch` check in [Data Quality](04-data-quality.md) is built on this same identity.
 
-## بازده دوره‌ای و تقویم شمسی
+## Periodic Returns and the Jalali Calendar
 
-بازده‌ها بر پایه‌ی **قیمت پایانی رسمی** و **پنجره‌های تقویمی** محاسبه می‌شوند (۷، ۳۰ و ۹۱ روز). مبدأ هر پنجره آخرین روز معاملاتی **قبل از یا برابر با** تاریخ مبدأ است، پس تعطیلات دقت را کم نمی‌کنند.
+Returns are computed from **official closing prices** over **calendar windows** (7, 30 and 91 days). Each window's origin is the last trading day **on or before** the origin date, so holidays don't throw off the calculation.
 
-«از ابتدای سال» یعنی از **۱ فروردین**، نه ۱ ژانویه. سال مالی بیشتر صندوق‌ها و گزارش‌های بازار سرمایه‌ی ایران شمسی است. تبدیل تاریخ با الگوریتم چرخه‌ی ۳۳ ساله‌ی تقویم جلالی در `domain/jalali.py` انجام می‌شود (بدون وابستگی خارجی، با تست روی نوروزهای ۱۴۰۲ تا ۱۴۰۶ و سال کبیسه‌ی ۱۴۰۳).
+"Year-to-date" means from **1 Farvardin**, not January 1. The fiscal year for most Iranian capital-market funds and reports is the Jalali year. Date conversion uses the 33-year cycle algorithm for the Jalali calendar in `domain/jalali.py` (no external dependency, tested against Nowruz for 1402–1406 and the leap year 1403).
 
-??? question "چرا بازده بر پایه‌ی قیمت و نه NAV؟"
-    تاریخچه‌ی روزانه‌ی NAV در TSETMC وجود ندارد و فقط NAV لحظه‌ای منتشر می‌شود. بازده قیمتی همان چیزی است که معامله‌گر واقعاً به دست آورده است. سرویس از روز اول جمع‌آوری، NAV پایان هر روز را در `fund_eod` ذخیره می‌کند، پس بازده NAV به‌تدریج قابل محاسبه می‌شود.
+??? question "Why is return based on price rather than NAV?"
+    TSETMC doesn't provide a daily NAV history — only the live NAV is published. Price-based return is what a trader actually realized. The service has stored each day's closing NAV in `fund_eod` since day one of collection, so NAV-based return becomes computable over time.
 
-## جمع‌بندی در سطح بازار
+## Market-Level Aggregation
 
-| شاخص کلان | روش تجمیع | چرا |
+| Market metric | Aggregation method | Why |
 |---|---|---|
-| خالص دارایی کل | جمع | مقداری جمع‌پذیر است |
-| ورود پول حقیقی کل | جمع | مقداری جمع‌پذیر است |
-| حباب بازار | **میانه**، بدون اهرمی‌ها | در برابر صندوق‌های خاص (دارا یکم، پالایش) مقاوم است |
-| حباب وزنی بازار | میانگین وزنی با خالص دارایی، بدون اهرمی‌ها | نشان می‌دهد پول بازار در کجا نشسته است (بخش بعد) |
-| پهنای بازار | تعداد صندوق‌های مثبت، منفی و بدون تغییر | میانگین وزنی را چند صندوق بزرگ تعیین می‌کنند؛ پهنا وضعیت عمومی را نشان می‌دهد |
+| Total net asset value | Sum | An additive quantity |
+| Total retail money inflow | Sum | An additive quantity |
+| Market premium | **Median**, excluding leveraged funds | Robust against outlier funds (Dara Yekom, Palayesh) |
+| Weighted market premium | AUM-weighted average, excluding leveraged funds | Shows where the market's money actually sits (next section) |
+| Market breadth | Count of advancing, declining and unchanged funds | A weighted average is driven by a few large funds; breadth shows the general state |
 
-### حباب: میانه یا وزنی؟ {#حباب-میانه-یا-وزنی}
+### Premium: Median or Weighted? {#premium-median-or-weighted}
 
-این دو عدد به دو سؤال متفاوت جواب می‌دهند و پنل هر دو را کنار هم نشان می‌دهد:
+These two numbers answer different questions, and the panel shows both side by side:
 
-- **میانه:** صندوق «معمولی» چقدر گران یا ارزان است؟ برای معامله‌گری که دنبال صندوق برای خرید است.
-- **وزنی (با خالص دارایی):** یک ریال سرمایه‌گذاری‌شده در این بازار، به‌طور متوسط با چه حبابی خریده شده است؟ برای مدیر پرتفوی که کل بازار را نگاه می‌کند.
+- **Median:** how expensive or cheap is a "typical" fund? For a trader looking for a fund to buy.
+- **Weighted (by net asset value):** on average, at what premium was each Rial invested in this market bought? For a portfolio manager looking at the market as a whole.
 
-روی داده‌ی واقعی پایان جلسه‌ی ۱ مهر ۱۴۰۵ فاصله‌ی این دو خیلی زیاد بود:
+On real data from the close of the session on 1 Mehr 1405, the gap between these two was large:
 
 <div class="kpis">
-  <div class="kpi"><b>−۰٫۵٪</b><span>میانه‌ی حباب ۱۵۰ صندوق</span></div>
-  <div class="kpi warn"><b>−۱۱٫۸٪</b><span>حباب وزنی</span></div>
-  <div class="kpi"><b>۳۶٫۶٪</b><span>سهم پالایش و دارا یکم از خالص دارایی</span></div>
-  <div class="kpi"><b>−۰٫۵٪</b><span>حباب وزنی بدون آن دو صندوق</span></div>
+  <div class="kpi"><b>−0.5%</b><span>median premium, 150 funds</span></div>
+  <div class="kpi warn"><b>−11.8%</b><span>weighted premium</span></div>
+  <div class="kpi"><b>36.6%</b><span>Palayesh and Dara Yekom's share of net asset value</span></div>
+  <div class="kpi"><b>−0.5%</b><span>weighted premium excluding those two funds</span></div>
 </div>
 
-دو صندوق بزرگ **پالایش** (−۲۹٫۸٪، ۲۱٫۶٪ کل دارایی) و **دارا یکم** (−۳۳٫۹٪، ۱۵٪ کل دارایی) به‌تنهایی عدد وزنی را پایین می‌کشند. بدون آن‌ها، حباب وزنی دقیقاً برابر میانه است. پس «حباب وزنی −۱۲٪» یعنی «این دو صندوق خصوصی‌سازی با تخفیف معامله می‌شوند»، نه اینکه «بازار صندوق‌ها ۱۲٪ ارزان است». به همین دلیل کاشی اصلی پنل میانه را نشان می‌دهد و عدد وزنی کنار آن آمده است. نمودار «حباب بازار در طول زمان» هر دو خط را رسم می‌کند: اگر فاصله‌ی آن‌ها تغییر کند، رفتار صندوق‌های بزرگ از بقیه‌ی بازار جدا شده است.
+Two large funds, **Palayesh** (−29.8%, 21.6% of total assets) and **Dara Yekom** (−33.9%, 15% of total assets), pull the weighted number down on their own. Without them, the weighted premium matches the median exactly. So "weighted premium −12%" means "these two privatization funds trade at a discount", not "the fund market is 12% cheap". That's why the panel's main tile shows the median, with the weighted number alongside it. The "market premium over time" chart plots both lines: if the gap between them changes, large funds are behaving differently from the rest of the market.
 
-تاریخچه‌ی این نمودار از `fund_eod` ساخته می‌شود (NAV پایانی هر روز از داده‌ی دقیقه‌ای). TSETMC تاریخچه‌ی NAV نمی‌دهد، پس سری از اولین روزی که سرویس داده گرفته شروع می‌شود و هر جلسه یک نقطه اضافه می‌شود.
+This chart's history is built from `fund_eod` (each day's closing NAV, from minute-level data). TSETMC doesn't provide NAV history, so the series starts from the first day the service collected data, and each session adds one more point.
 
-## پیاده‌سازی
+## Implementation
 
-- **SQL فقط داده را بازیابی می‌کند**، با `FINAL`، `LIMIT 1 BY` و `argMaxIf` روی حداکثر چند صد هزار ردیف. **پایتون محاسبه می‌کند** (`analytics/service.py` و `domain/metrics.py`)، چون فرمول‌ها در پایتون تست واحد دارند و مجموعه‌ی نتیجه کوچک است: یک ردیف برای هر صندوق.
-- جدول `fund_eod` با یک materialized view آخرین وضعیت هر صندوق در هر روز را نگه می‌دارد. فقط تجمیع‌هایی از نوع «آخرین مقدار» (`argMax`) استفاده شده‌اند، چون در برابر ردیف‌های تکراری (replay، forward-fill) مقاوم‌اند. تجمیع `sum` روی منبع `ReplacingMergeTree` تکراری‌ها را دو بار می‌شمارد.
-- زمان پاسخ روی داده‌ی واقعی (۱۵۹ صندوق، ۴۹ هزار ردیف تاریخچه) **بدون کش** زیر ۹۰ میلی‌ثانیه است. کش (ADR 0006) این را برای بقیه‌ی درخواست‌های هر دقیقه به چند میلی‌ثانیه می‌رساند.
+- **SQL only retrieves data**, using `FINAL`, `LIMIT 1 BY` and `argMaxIf` over at most a few hundred thousand rows. **Python does the computing** (`analytics/service.py` and `domain/metrics.py`), because the formulas have unit tests in Python and the result set is small: one row per fund.
+- The `fund_eod` table uses a materialized view to keep each fund's latest state per day. Only "last value" aggregations (`argMax`) are used, since they're robust against duplicate rows (replay, forward-fill). A `sum` aggregation over a `ReplacingMergeTree` source would double-count duplicates.
+- Response time on real data (159 funds, 49K history rows) **without caching** is under 90 ms. Caching (ADR 0006) brings this down to a few milliseconds for the rest of that minute's requests.

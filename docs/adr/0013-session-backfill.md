@@ -1,59 +1,59 @@
-# ADR 0013 — بازسازی جلسه‌های گذشته از تاریخچه‌ی قیمت
+# ADR 0013 — Backfilling Past Sessions from Price History
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده</span><span>تاریخ: پس از روز ۷</span><span>بر پایه‌ی آزمون واقعی ۵ مهر ۱۴۰۵ روی ۲۹۹۲۰۹۲۰</span></div>
+<div class="adr-meta"><span>Status: Accepted</span><span>Date: After Day 7</span><span>Based on a real-world test on 5 Mehr 1405 against 29920920</span></div>
 
-!!! abstract "خلاصه"
-    در راه‌اندازی (خارج از ساعات بازار)، ۵ روز معاملاتی اخیر که collector اصلاً در طول آن‌ها روشن نبوده از `ClosingPrice/GetClosingPriceHistory` بازسازی می‌شوند: قیمت، حجم، ارزش و تعداد معاملات، دقیقه به دقیقه، از باز شدن تا بسته شدن بازار. برخلاف [ADR 0012](0012-intraday-backfill.md) (که فقط امروز را می‌داند)، این endpoint هر روز گذشته‌ای را می‌دهد. چون تیک زنده‌ای برای مقایسه نیست، هر روز/صندوق فقط وقتی ذخیره می‌شود که مجموع نهایی‌اش با رقم رسمی پایان‌روز (`fund_history_daily`) بخواند. همان جدول و همان محدودیت ADR 0012: بدون NAV و بدون حقیقی/حقوقی.
+!!! abstract "Summary"
+    At startup (outside market hours), the 5 most recent trading days during which the collector was never running at all are backfilled from `ClosingPrice/GetClosingPriceHistory`: price, volume, value, and trade count, minute by minute, from market open to close. Unlike [ADR 0012](0012-intraday-backfill.md) (which only knows about today), this endpoint provides any past day. Since there is no live tick to compare against, each day/fund is only stored when its final total agrees with the official end-of-day figure (`fund_history_daily`). Same table and same limitation as ADR 0012: no NAV and no real/legal-entity flow.
 
-## زمینه
+## Context
 
-- کاربر پرسید: «می‌توانید داده‌ی دقیقه‌به‌دقیقه‌ی روزهای قبل را هم جمع کنید؟» — علاوه بر تاریخچه‌ی ۴۰۰ روزه‌ی **روزانه** که از قبل هست ([ADR بازسازی تاریخچه](../02-data-sources.md)).
-- ADR 0012 صریحاً `Trade/GetTrade` را فقط برای «امروز» به کار می‌گیرد؛ کد آن حتی این را اجرا می‌کند (`if day != today: return`).
-- دو endpoint دیگر، `GetTradeHistory` و `GetClosingPriceHistory`، در همان اندازه‌گیری روز با `{date}` = **امروز** آزموده شده بودند و ۵۰۲/خالی داده بودند — نتیجه‌ای که در ADR 0012 «رد شد» ثبت شده. اما نام‌شان («History») همین را می‌گفت: شاید فقط با یک روز **گذشته و بسته‌شده** کار کنند.
-- این فرضیه در docs/02 ثبت و از کاربر خواسته شد با VPN خاموش و یک تاریخ واقعی گذشته آزموده شود (چون این محیط sandbox به TSETMC دسترسی ندارد).
-- نتیجه‌ی واقعی (۵ مهر ۱۴۰۵، تاریخ آزموده‌شده ۲۹ شهریور، ۱۵ صندوق نمونه):
+- The user asked: "Can you also collect minute-by-minute data for past days?" — in addition to the existing 400-day **daily** history ([History Backfill ADR](../02-data-sources.md)).
+- ADR 0012 explicitly uses `Trade/GetTrade` only for "today"; its code even enforces this (`if day != today: return`).
+- The other two endpoints, `GetTradeHistory` and `GetClosingPriceHistory`, had been tested in the same day's measurement with `{date}` = **today**, and returned 502/empty — a result recorded in ADR 0012 as "rejected". But their names ("History") suggested the same thing: maybe they only work with a **past, closed** day.
+- This hypothesis was recorded in docs/02, and the user was asked to test it with VPN off and a real past date (since this sandbox environment has no access to TSETMC).
+- The real result (5 Mehr 1405, tested date 29 Shahrivar, 15 sample funds):
 
-| endpoint | نتیجه | برداشت |
+| Endpoint | Result | Takeaway |
 |---|---|---|
-| `Trade/GetTradeHistory/{ins}/{date}/false` | ۱۲ از ۱۵ صندوق `rows: 0` با اینکه هزاران معامله داشتند (یاقوت: ۴۸٬۰۲۲ معامله، صفر ردیف) | **غیرقابل اعتماد**؛ الگویی هم بین صندوق‌های موفق/ناموفق دیده نشد. کنار گذاشته شد |
-| `ClosingPrice/GetClosingPriceHistory/{ins}/{date}` | ۱۴ از ۱۵ صندوق ردیف واقعی برگرداندند (فقط هیرا خالی)؛ سریع و ارزان (برون‌یابی: ۵٫۴ مگابایت و ~۷ ثانیه برای ۳۳۴ صندوق) | **قابل استفاده**. شکل ردیف‌ها (`pDrCotVal`, `qTotTran5J`, `qTotCap`, `zTotTran`) دقیقاً همان مدل `DailyPriceRow` است که برای bootstrap ۴۰۰ روزه از قبل پارس می‌شود — یعنی همان فید، با ریزدانگی زمانی اضافه (`hEven`) |
+| `Trade/GetTradeHistory/{ins}/{date}/false` | 12 of 15 funds returned `rows: 0` despite having thousands of trades (Yaghut: 48,022 trades, zero rows) | **Unreliable**; no pattern was found between succeeding/failing funds either. Dropped |
+| `ClosingPrice/GetClosingPriceHistory/{ins}/{date}` | 14 of 15 funds returned real rows (only Hira was empty); fast and cheap (extrapolated: 5.4 MB and ~7 seconds for 334 funds) | **Usable**. The row shape (`pDrCotVal`, `qTotTran5J`, `qTotCap`, `zTotTran`) is exactly the same `DailyPriceRow` model already parsed for the 400-day bootstrap — the same feed, with added time granularity (`hEven`) |
 
-- برخلاف `Trade/GetTrade`، هر ردیف `GetClosingPriceHistory` خودش یک **مجموع تجمعی** است (نه یک معامله‌ی تکی)، پس نیازی به جمع زدن نیست — فقط باید در زمان مرتب و در هر مرز دقیقه نمونه‌برداری شود.
+- Unlike `Trade/GetTrade`, each `GetClosingPriceHistory` row is itself a **running cumulative total** (not a single trade), so no summation is needed — just sort by time and sample at each minute boundary.
 
-## تصمیم
+## Decision
 
 ```text
-در bootstrap (خارج از ساعات بازار)، بعد از catch_up_history و closing_snapshot:
-  برای ۵ روز معاملاتی اخیر تا و شامل آخرین جلسه (تعطیلات رد می‌شوند):
-    برای هر صندوقی که برای آن روز هنوز تصمیمی ثبت نشده (intraday_backfill_log):
-      ClosingPriceHistory  →  پاسخ خام در raw_snapshots
-      tape  = ردیف‌ها مرتب بر اساس hEven (هر ردیف از قبل تجمعی است)
-      check = مجموع نهایی (حجم، ارزش) باید با fund_history_daily همان روز بخواند (±۱٪)
-      اگر خواند   → دقیقه‌های باز تا بسته‌ی بازار در fund_ticks_backfill
-      وگرنه        → rejected در intraday_backfill_log، هیچ چیز ذخیره نمی‌شود
+In bootstrap (outside market hours), after catch_up_history and closing_snapshot:
+  For the 5 most recent trading days up to and including the last session (holidays skipped):
+    For every fund with no decision recorded yet for that day (intraday_backfill_log):
+      ClosingPriceHistory  →  raw response into raw_snapshots
+      tape  = rows sorted by hEven (each row is already cumulative)
+      check = the final total (volume, value) must agree with fund_history_daily for that same day (±1%)
+      if it agrees   → minutes from market open to close go into fund_ticks_backfill
+      otherwise       → rejected in intraday_backfill_log, nothing is stored
 ```
 
-| تصمیم | دلیل |
+| Decision | Reason |
 |---|---|
-| همان جدول‌ها (`fund_ticks_backfill`, `intraday_backfill_log`) | همان محدودیت داده (بدون NAV/حقیقی-حقوقی) و همان فلسفه (بررسی پیش از ذخیره)؛ مایگریشن جدیدی لازم نبود |
-| بررسی با **رقم رسمی پایان‌روز**، نه تیک‌های زنده | برای یک روز گذشته هیچ تیک زنده‌ای وجود ندارد؛ تنها منبع اعتماد رقم رسمی همان جدولی است که از قبل bootstrap پر می‌کند |
-| **یک** بررسی به‌جای بررسی هر دقیقه | مجموع تجمعی فقط در آخرین ردیف قابل قیاس با رقم رسمی است؛ میانه‌ی راه معنایی برای «درست/غلط» ندارد |
-| **۵ روز**، نه ۷ | هزینه‌ی اندازه‌گیری‌شده (~۷ ثانیه/روز برای کل بازار) کوچک است، ولی هر روز درخواستی جداست؛ ۵ روز درخواست کاربر را با حاشیه‌ی خطا برآورده می‌کند بدون درخواست اضافه برای روزهایی که هیرا-مانند همیشه خالی برمی‌گردند. با `SESSION_BACKFILL_DAYS` قابل تغییر است |
-| فقط در **bootstrap** (راه‌اندازی، خارج از بازار) | این کار روزی یک‌بار لازم است، نه هر دقیقه؛ رقابت با چرخه‌ی زنده برای پهنای باند TSETMC معنا ندارد |
-| ایدمپوتنت به ازای (روز، صندوق) | `backfilled_funds(day)` از قبل برای ADR 0012 بود و بدون تغییر همین‌جا هم کار می‌کند؛ یک راه‌اندازی ناتمام در راه‌اندازی بعدی ادامه می‌یابد |
+| Same tables (`fund_ticks_backfill`, `intraday_backfill_log`) | Same data limitation (no NAV/real-legal flow) and same philosophy (check before storing); no new migration needed |
+| Checking against the **official end-of-day figure**, not live ticks | There is no live tick for a past day; the only trustworthy source is the same table bootstrap already fills |
+| **One** check instead of checking every minute | The cumulative total is only comparable to the official figure in the last row; a mid-way point has no meaningful "right/wrong" |
+| **5 days**, not 7 | The measured cost (~7 seconds/day for the whole market) is small, but each day is a separate request; 5 days meets the user's request with a margin of error without extra requests for days that, like Hira, always come back empty | 
+| Only during **bootstrap** (startup, outside market hours) | This only needs to happen once a day, not every minute; there's no reason to compete with the live cycle for TSETMC bandwidth |
+| Idempotent per (day, fund) | `backfilled_funds(day)` already existed for ADR 0012 and works here unchanged; an incomplete bootstrap resumes on the next startup |
 
-## گزینه‌های ردشده
+## Rejected Options
 
-| گزینه | چرا نه |
+| Option | Why not |
 |---|---|
-| `Trade/GetTradeHistory` به‌جای `GetClosingPriceHistory` | ۸۰٪ از نمونه خالی برگرداند با اینکه معامله داشتند؛ الگویی برای پیش‌بینی «کدام صندوق کار می‌کند» نبود |
-| بازسازی هر ۴۰۰ روز | هزینه و ریسک به‌مراتب بیشتر برای دامنه‌ای که کاربر نخواسته بود؛ تاریخچه‌ی روزانه (نه دقیقه‌ای) از قبل ۴۰۰ روز را پوشش می‌دهد |
-| اجرای این کار در چرخه‌ی زنده (مثل ADR 0012) | فقط یک‌بار در راه‌اندازی معنا دارد؛ روزهای گذشته تغییر نمی‌کنند، پس نیازی به تکرار روزانه نیست |
+| `Trade/GetTradeHistory` instead of `GetClosingPriceHistory` | Returned empty for 80% of the sample despite having trades; no pattern to predict "which fund will work" |
+| Backfilling all 400 days | Far more cost and risk for a scope the user didn't ask for; the daily (not minute-level) history already covers 400 days |
+| Running this in the live cycle (like ADR 0012) | Only makes sense once, at startup; past days don't change, so there's no need to repeat it daily |
 
-## پیامدها
+## Consequences
 
-- ➕ نمودار درون‌روز یک صندوق حتی برای روزهایی که collector اصلاً روشن نبوده (نه فقط دیر روشن شده) پر می‌شود — تا ۵ روز اخیر.
-- ➕ همان محدودیت خط‌چین/بدون-NAV در پنل که کاربر از ADR 0012 می‌شناسد؛ رفتار یکسان، تعجب جدیدی در UI نیست.
-- ➖ هنوز NAV و ورود پول حقیقی درون‌روز برای این روزها وجود ندارد — TSETMC هیچ endpointی برای «NAV در فلان دقیقه‌ی گذشته» ندارد؛ NAV فقط لحظه‌ای پرس‌وجو می‌شود، هیچ‌وقت با برچسب زمان گذشته نمی‌آید.
-- ⚠️ نمونه‌ی آزمایش‌شده ۱۵ صندوق بود، نه ۳۳۴؛ اگر پس از اجرای واقعی روی همه‌ی صندوق‌ها نرخ رد بالاتر از حد انتظار بود، معیار `tsetmc_backfill_funds_total{status="rejected"}` و ستون `note` در `intraday_backfill_log` اولین جای نگاه کردن‌اند.
-- ⚠️ هیرا (در نمونه) همیشه خالی برگشت؛ چند صندوق ممکن است هرگز بازسازی نشوند، مثل رفتار مشابه در ADR 0012.
+- ➕ A fund's intraday chart is now filled in even for days the collector was never running at all (not just started late) — up to the last 5 days.
+- ➕ Same dashed/no-NAV limitation in the panel the user already knows from ADR 0012; consistent behavior, no new surprise in the UI.
+- ➖ Intraday NAV and real-entity money flow still don't exist for these days — TSETMC has no endpoint for "NAV at a given past minute"; NAV is only ever queried live, and never comes with a past timestamp.
+- ⚠️ The tested sample was 15 funds, not 334; if the rejection rate turns out higher than expected after running on all funds, the `tsetmc_backfill_funds_total{status="rejected"}` metric and the `note` column in `intraday_backfill_log` are the first places to look.
+- ⚠️ Hira (in the sample) always came back empty; a few funds may never be backfillable, similar to the behavior seen in ADR 0012.

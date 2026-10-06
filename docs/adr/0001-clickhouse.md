@@ -1,42 +1,42 @@
-# ADR 0001 — ClickHouse به‌عنوان پایگاه داده
+# ADR 0001 — ClickHouse as the Database
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده</span><span>تاریخ: روز ۱</span></div>
+<div class="adr-meta"><span>Status: Accepted</span><span>Date: Day 1</span></div>
 
-!!! abstract "خلاصه"
-    داده فقط اضافه می‌شود و هرگز ویرایش نمی‌شود، و کوئری‌ها تحلیلی‌اند (تعداد کمی ستون، تعداد زیادی ردیف). یک پایگاه داده‌ی ستونی با فشرده‌سازی، TTL و materialized view برای این الگو ساخته شده است. هزینه‌ی این انتخاب نبودن تراکنش و حذف تکرار ناهمگام است، که با طراحی idempotent جبران می‌شود.
+!!! abstract "Summary"
+    Data is append-only and never edited, and queries are analytical (few columns, many rows). A columnar database with compression, TTL, and materialized views was built for this pattern. The cost of this choice is the lack of transactions and asynchronous deduplication, offset by idempotent design.
 
-## زمینه
+## Context
 
-- حجم نوشتن: حدود ۱۲۰ صندوق × ۲۱۰ دقیقه در روز ≈ ۲۵ هزار ردیف تمیز در روز، به‌علاوه‌ی پاسخ‌های خام (چند مگابایت JSON در هر دقیقه). این حجم کم است، اما **تنها رشد می‌کند و هرگز به‌روزرسانی نمی‌شود**.
-- الگوی خواندن تحلیلی است: «مجموع ورود پول حقیقی همه‌ی صندوق‌ها به تفکیک روز»، «توزیع حباب در این لحظه»، «بازده ۳۰ روزه‌ی همه‌ی صندوق‌ها». این کوئری‌ها روی تعداد کمی ستون و تعداد زیادی ردیف اجرا می‌شوند.
-- پنل باید سریع باشد، بدون لایه‌ی کش جداگانه.
+- Write volume: about 120 funds × 210 minutes per day ≈ 25 thousand clean rows per day, plus raw responses (a few megabytes of JSON per minute). This volume is low, but **it only grows and is never updated**.
+- The read pattern is analytical: "total real-money inflow across all funds by day", "the premium/discount distribution at this instant", "the 30-day return of all funds". These queries run over few columns and many rows.
+- The dashboard must be fast, without a separate caching layer.
 
-## تصمیم
+## Decision
 
-**ClickHouse 24.8 (LTS)** با این موتورها:
+**ClickHouse 24.8 (LTS)** with these engines:
 
-| جدول | موتور | دلیل |
+| Table | Engine | Reason |
 |---|---|---|
-| `raw_snapshots` | `MergeTree` + فشرده‌سازی `ZSTD(6)` + `TTL 30 DAY` | فقط افزودنی. پاسخ‌های JSON تکراری‌اند و بیش از ۱۰ برابر فشرده می‌شوند. پس از ۳۰ روز خودکار پاک می‌شوند. |
-| `fund_ticks` | `ReplacingMergeTree(ingested_at)` روی `(ins_code, ts)` | نوشتن تکراری یک دقیقه (retry یا اجرای دوباره) تکراری نمی‌سازد و آخرین نسخه می‌ماند. |
-| `funds`، `fund_daily` | `ReplacingMergeTree(updated_at)` | داده‌ی مرجع با تغییر کند؛ همیشه آخرین نسخه خوانده می‌شود. |
-| تجمیع‌ها (روز ۴) | `AggregatingMergeTree` + Materialized View | تجمیع روزانه و درون‌روز هنگام درج محاسبه می‌شود، نه هنگام خواندن. |
+| `raw_snapshots` | `MergeTree` + `ZSTD(6)` compression + `TTL 30 DAY` | Append-only. The JSON responses are repetitive and compress more than 10x. Automatically purged after 30 days. |
+| `fund_ticks` | `ReplacingMergeTree(ingested_at)` on `(ins_code, ts)` | A duplicate write for the same minute (retry or re-run) doesn't create duplicates; the latest version is kept. |
+| `funds`, `fund_daily` | `ReplacingMergeTree(updated_at)` | Reference data that changes slowly; the latest version is always read. |
+| Aggregates (Day 4) | `AggregatingMergeTree` + Materialized View | Daily and intraday aggregates are computed on insert, not on read. |
 
-پارتیشن‌بندی ماهانه (`toYYYYMM`) است، و برای داده‌ی خام روزانه تا TTL بتواند پارتیشن کامل را حذف کند.
+Partitioning is monthly (`toYYYYMM`), so that for raw data a full partition can be dropped once the TTL expires.
 
-## گزینه‌های ردشده
+## Rejected Options
 
-| گزینه | چرا نه |
+| Option | Why not |
 |---|---|
-| **PostgreSQL + TimescaleDB** | کاملاً کافی بود و `UPDATE`/`UNIQUE` واقعی دارد. اما کوئری‌های تحلیلی ستونی در ClickHouse به‌مراتب سریع‌ترند، فشرده‌سازی داده‌ی خام بهتر است و materialized viewهای افزایشی به‌صورت پیش‌فرض وجود دارند. برای محصولی که هسته‌اش «تحلیل» است، ClickHouse انتخاب طبیعی‌تری است. |
-| **PostgreSQL ساده** | با رشد داده، کوئری‌های تجمیعی کند می‌شوند و به کش نیاز پیدا می‌کنیم. |
-| **InfluxDB / QuestDB** | برای سری زمانی خوب‌اند، اما داده‌ی مرجع و JOIN در آن‌ها ضعیف‌تر است و SQL کاملی ندارند. |
-| **MongoDB** | ذخیره‌ی JSON خام راحت است، اما تحلیل ستونی و اعتبارسنجی schema ضعیفی دارد. |
+| **PostgreSQL + TimescaleDB** | Would have been entirely sufficient and has real `UPDATE`/`UNIQUE`. But columnar analytical queries are far faster in ClickHouse, raw-data compression is better, and incremental materialized views exist by default. For a product whose core is "analysis", ClickHouse is the more natural choice. |
+| **Plain PostgreSQL** | As data grows, aggregate queries get slow and we'd need a cache. |
+| **InfluxDB / QuestDB** | Good for time series, but weaker at reference data and joins, and lack full SQL. |
+| **MongoDB** | Easy to store raw JSON, but weak at columnar analytics and schema validation. |
 
-## پیامدها
+## Consequences
 
-- ➕ کوئری‌های پنل روی ماه‌ها داده در حد میلی‌ثانیه‌اند؛ فشرده‌سازی عالی؛ TTL و MV داخلی.
-- ➖ **حذف تکرار ناهمگام است.** `ReplacingMergeTree` تکراری‌ها را هنگام merge حذف می‌کند، نه هنگام درج. کوئری‌هایی که دقت کامل لازم دارند از `FINAL` یا `argMax` استفاده می‌کنند. این قاعده در لایه‌ی خواندن API متمرکز است.
-- ➖ **تراکنش وجود ندارد.** نوشتن داده‌ی یک چرخه اتمیک نیست. جبران: `run_id` روی همه‌ی ردیف‌ها و idempotent بودن درج‌ها. چرخه‌ی ناقص را می‌توان با همان `tick` دوباره اجرا کرد.
-- ➖ **UPDATE/DELETE گران است** (mutation). طراحی عمداً «فقط افزودنی» است و اصلاح داده با درج نسخه‌ی جدید انجام می‌شود، نه ویرایش.
-- ➖ ClickHouse برای درج‌های کوچک و پرتعداد مناسب نیست. collector داده‌ی هر چرخه را **یک‌جا** (batch) درج می‌کند، یعنی حدود یک درج در دقیقه برای هر جدول.
+- ➕ Dashboard queries over months of data run in milliseconds; excellent compression; built-in TTL and MV.
+- ➖ **Deduplication is asynchronous.** `ReplacingMergeTree` removes duplicates during merge, not on insert. Queries that need full accuracy use `FINAL` or `argMax`. This rule is centralized in the API's read layer.
+- ➖ **No transactions.** Writing one cycle's data is not atomic. Mitigation: a `run_id` on every row and idempotent inserts. An incomplete cycle can be re-run with the same `tick`.
+- ➖ **UPDATE/DELETE is expensive** (mutation). The design is deliberately "append-only", and corrections are made by inserting a new version, not by editing.
+- ➖ ClickHouse isn't suited to many small inserts. The collector inserts each cycle's data **in a single batch**, i.e. about one insert per minute per table.

@@ -1,54 +1,54 @@
-# پایش و هشدار
+# Monitoring and Alerting
 
-<p class="lead">سه چیز باید همیشه معلوم باشد: collector داده می‌گیرد یا نه، API به پنل جواب می‌دهد یا نه، و ClickHouse سالم است یا نه. هر سرویس معیارهای خودش را منتشر می‌کند، Prometheus آن‌ها را جمع می‌کند، Grafana نشانشان می‌دهد و Alertmanager هر مشکل را، به فارسی و همراه با لینک راهنمای همین صفحه، به بله، تلگرام یا هر webhook دیگری می‌فرستد.</p>
+<p class="lead">Three things should always be clear: whether the collector is fetching data, whether the API is responding to the panel, and whether ClickHouse is healthy. Each service publishes its own metrics, Prometheus scrapes them, Grafana displays them, and Alertmanager sends every problem — in Persian, with a link to this page's runbook — to Bale, Telegram, or any other webhook.</p>
 
 <div class="kpis">
-  <div class="kpi"><b>۴</b><span>داشبورد Grafana، تعریف‌شده به‌صورت کد</span></div>
-  <div class="kpi"><b>۱۶</b><span>هشدار، هر کدام با یک راهنمای رفع در این صفحه</span></div>
-  <div class="kpi"><b>۸</b><span>سناریوی تست واحد برای قواعد هشدار (promtool)</span></div>
-  <div class="kpi"><b>۰</b><span>رمز در فایل‌های پیکربندی؛ همه در ‎.env</span></div>
+  <div class="kpi"><b>4</b><span>Grafana dashboards, defined as code</span></div>
+  <div class="kpi"><b>16</b><span>alerts, each with a remediation guide on this page</span></div>
+  <div class="kpi"><b>8</b><span>unit test scenarios for alert rules (promtool)</span></div>
+  <div class="kpi"><b>0</b><span>secrets in config files; all in ‎.env</span></div>
 </div>
 
 <figure class="diagram">
-<img src="assets/diagrams/monitoring.svg" alt="معماری پایش و هشدار">
-<figcaption>شکل ۱ — هر سرویس خودش <code>/metrics</code> دارد و exporter جداگانه‌ای لازم نیست؛ ClickHouse هم خروجی داخلی خودش را دارد. خط نارنجی مسیر هشدار است.</figcaption>
+<img src="assets/diagrams/monitoring.svg" alt="Monitoring and alerting architecture">
+<figcaption>Figure 1 — each service exposes its own <code>/metrics</code> and no separate exporter is needed; ClickHouse also has its own built-in exporter. The orange line is the alert path.</figcaption>
 </figure>
 
-## راه‌اندازی
+## Setup
 
 ```bash
-docker compose --profile monitoring up -d        # Prometheus، Alertmanager، Grafana، alert-relay
+docker compose --profile monitoring up -d        # Prometheus, Alertmanager, Grafana, alert-relay
 ```
 
-| آدرس | چه چیزی |
+| Address | What |
 |---|---|
-| <http://localhost:3000> | **Grafana** (نام کاربری و رمز: `GRAFANA_USER` / `GRAFANA_PASSWORD`، پیش‌فرض admin). صفحه‌ی اول، داشبورد «نمای کلی» است |
-| <http://localhost:9090/alerts> | Prometheus: وضعیت همه‌ی هشدارها |
-| <http://localhost:9093> | Alertmanager: هشدارهای فعال، خاموش کردن موقت (silence) |
+| <http://localhost:3000> | **Grafana** (username/password: `GRAFANA_USER` / `GRAFANA_PASSWORD`, default admin). The landing page is the "Overview" dashboard |
+| <http://localhost:9090/alerts> | Prometheus: status of all alerts |
+| <http://localhost:9093> | Alertmanager: active alerts, temporary silencing |
 
-پایش در یک **profile** جداست: stack اصلی بدون آن هم کامل کار می‌کند، و کسی که فقط پنل را می‌خواهد سه ایمیج اضافه دانلود نمی‌کند (دانلود از Docker Hub با VPN انجام می‌شود، [راهنمای اجرا](08-runbook.md)). همه‌ی پورت‌های پایش فقط روی `127.0.0.1` باز هستند.
+Monitoring is a separate **profile**: the main stack works fully without it, and someone who just wants the dashboard doesn't have to download three extra images (downloads from Docker Hub go through the VPN, see the [runbook](08-runbook.md)). All monitoring ports are bound only to `127.0.0.1`.
 
-### گرفتن هشدار در «بله»
+### Receiving Alerts in Bale
 
-TSETMC فقط از IP ایران در دسترس است، پس سرور معمولاً در ایران است. در این حالت تلگرام در دسترس نیست، ولی **بله** هست، و API بازوی بله با تلگرام سازگار است:
+TSETMC is only reachable from Iranian IPs, so the server is usually in Iran. In that case Telegram isn't reachable, but **Bale** is, and Bale's bot API is Telegram-compatible:
 
-1. در بله با `@botfather` یک بازو بسازید و توکن آن را بگیرید.
-2. بازو را به گروه یا کانال هشدار اضافه کنید و شناسه‌ی گفتگو (chat id) را پیدا کنید.
-3. در `.env` بنویسید:
+1. Create a bot in Bale with `@botfather` and get its token.
+2. Add the bot to the alert group or channel and find the chat id.
+3. In `.env`, write:
 
     ```bash
     ALERT_BALE_TOKEN=123456:ABC...
     ALERT_BALE_CHAT_ID=987654321
     ```
 
-4. `docker compose --profile monitoring up -d alert-relay`. در لاگ باید `alert relay ready` با `"channels": ["bale"]` دیده شود.
+4. `docker compose --profile monitoring up -d alert-relay`. The log should show `alert relay ready` with `"channels": ["bale"]`.
 
-تلگرام (`ALERT_TELEGRAM_*`) و هر webhook دیگر (`ALERT_WEBHOOK_URL`، مثلاً n8n یا پل Slack/Mattermost) هم به همین شکل فعال می‌شوند و می‌توانند هم‌زمان روشن باشند. بدون هیچ کانالی، هشدارها فقط در لاگ alert-relay نوشته می‌شوند.
+Telegram (`ALERT_TELEGRAM_*`) and any other webhook (`ALERT_WEBHOOK_URL`, e.g. n8n or a Slack/Mattermost bridge) are enabled the same way, and can be active at the same time. With no channel configured, alerts are only written to the alert-relay log.
 
-!!! question "چرا یک relay و نه گیرنده‌های خود Alertmanager؟"
-    گیرنده‌ی تلگرام Alertmanager همیشه `parse_mode` می‌فرستد، که در مستندات بازوی بله نیامده است. relay متن ساده می‌فرستد که هر دو قبول می‌کنند. Alertmanager متغیر محیطی هم نمی‌خواند، پس توکن باید در فایل پیکربندی نوشته شود. relay مثل بقیه‌ی سرویس‌ها `.env` را می‌خواند. پیام‌ها هم از روی annotationهای فارسی قواعد ساخته می‌شوند. relay فقط وقتی به Alertmanager خطا برمی‌گرداند که **همه‌ی** کانال‌ها شکست خورده باشند، تا تکرار پیام، پیام تحویل‌شده را دوباره نفرستد.
+!!! question "Why a relay instead of Alertmanager's own receivers?"
+    Alertmanager's Telegram receiver always sends `parse_mode`, which isn't mentioned in Bale's bot documentation. The relay sends plain text, which both accept. Alertmanager also doesn't read environment variables, so the token would have to be written into the config file. The relay, like the other services, reads `.env`. Messages are also built from the rules' Persian annotations. The relay only returns an error to Alertmanager when **all** channels fail, so a retry doesn't resend a message that was already delivered.
 
-یک پیام واقعی از تمرین قطعی (بخش [تمرین](#تمرین-قطعی-روی-سیستم-واقعی)):
+A real message from the outage drill (see the [drill](#live-outage-drill) section):
 
 ```text
 TSETMCViewer
@@ -60,165 +60,165 @@ TSETMCViewer
 ```
 
 <figure class="shot">
-<img src="assets/screens/bale-alerts.webp" alt="بازوی هشدار در بله">
-<figcaption>همان بازو (<code>TSETMCViewerAlertBot</code>) روی گروه واقعی در بله: هشدار بحرانی «collector در دسترس نیست» ساعت ۱۲:۲۸ و رفعش ساعت ۱۲:۳۸، سپس هشدار «داده‌ی تازه ثبت نمی‌شود» و رفعش — هر پیام با لینک راهنمای همین صفحه.</figcaption>
+<img src="assets/screens/bale-alerts.webp" alt="Alert bot in Bale">
+<figcaption>The same bot (<code>TSETMCViewerAlertBot</code>) in a real group in Bale: critical alert "Collector Unavailable" at 12:28 and its resolution at 12:38, then the "No Fresh Data Being Recorded" alert and its resolution — each message includes a link to this page's runbook.</figcaption>
 </figure>
 
-از این نمونه‌ی واقعی هم دیده می‌شود: relay فقط رخداد را می‌فرستد، نه هر تکرار Alertmanager (هر پیام یک بار «شروع» و یک بار «رفع شد»)، و لینک راهنما در هر دو هست.
+This real example also shows: the relay only sends the event, not every Alertmanager repeat (each message appears once for "fired" and once for "resolved"), and the runbook link appears in both.
 
-## معیارها
+## Metrics
 
-همه‌ی معیارها در یک فایل تعریف شده‌اند: `src/tsetmc_viewer/telemetry.py`. مقدار برچسب‌ها همیشه محدود است (نام endpoint، وضعیت، الگوی مسیر مثل `/api/v1/funds/{ins_code}`)، هیچ‌وقت کد نماد یا URL خام، تا تعداد سری‌های زمانی کنترل‌شده بماند.
+All metrics are defined in a single file: `src/tsetmc_viewer/telemetry.py`. Label values are always bounded (endpoint name, status, path pattern like `/api/v1/funds/{ins_code}`), never a raw symbol code or URL, so the number of time series stays under control.
 
 === "collector"
 
-    | معیار | نوع | معنی |
+    | Metric | Type | Meaning |
     |---|---|---|
-    | `tsetmc_collector_cycles_total{status}` | counter | چرخه‌ها به تفکیک ok / partial / failed |
-    | `tsetmc_collector_cycle_duration_seconds` | histogram | مدت هر چرخه (بودجه: ۶۰ ثانیه) |
-    | `tsetmc_collector_last_success_timestamp_seconds` | gauge | زمان آخرین چرخه‌ای که داده نوشت |
-    | `tsetmc_collector_failed_streak` | gauge | تعداد شکست‌های پیاپی |
-    | `tsetmc_collector_funds_received` / `_expected` | gauge | کامل بودن آخرین چرخه |
-    | `tsetmc_collector_quality_issues_total{check,action}` | counter | رخدادهای اعتبارسنج ([کیفیت داده](04-data-quality.md)) |
-    | `tsetmc_collector_rows_repaired_total{kind}` | counter | ردیف‌های تکمیل یا اصلاح‌شده |
-    | `tsetmc_collector_leader` | gauge | ۱ اگر این نمونه رهبر است ([ADR 0010](adr/0010-high-availability.md)) |
-    | `tsetmc_market_open` · `tsetmc_session_confirmed` | gauge | تقویم (با تعطیلات) و تأیید جلسه از روی TSETMC |
-    | `tsetmc_source_requests_total{endpoint,outcome}` | counter | نتیجه‌ی نهایی هر درخواست به TSETMC، پس از retry |
-    | `tsetmc_source_request_duration_seconds{endpoint}` | histogram | تأخیر هر تلاش |
-    | `tsetmc_source_retries_total{endpoint}` | counter | تلاش‌های دوباره |
+    | `tsetmc_collector_cycles_total{status}` | counter | Cycles broken down by ok / partial / failed |
+    | `tsetmc_collector_cycle_duration_seconds` | histogram | Duration of each cycle (budget: 60 seconds) |
+    | `tsetmc_collector_last_success_timestamp_seconds` | gauge | Timestamp of the last cycle that wrote data |
+    | `tsetmc_collector_failed_streak` | gauge | Number of consecutive failures |
+    | `tsetmc_collector_funds_received` / `_expected` | gauge | Completeness of the latest cycle |
+    | `tsetmc_collector_quality_issues_total{check,action}` | counter | Validator events ([data quality](04-data-quality.md)) |
+    | `tsetmc_collector_rows_repaired_total{kind}` | counter | Rows completed or corrected |
+    | `tsetmc_collector_leader` | gauge | 1 if this instance is the leader ([ADR 0010](adr/0010-high-availability.md)) |
+    | `tsetmc_market_open` · `tsetmc_session_confirmed` | gauge | Calendar (including holidays) and session confirmation from TSETMC |
+    | `tsetmc_source_requests_total{endpoint,outcome}` | counter | Final outcome of each request to TSETMC, after retries |
+    | `tsetmc_source_request_duration_seconds{endpoint}` | histogram | Latency of each attempt |
+    | `tsetmc_source_retries_total{endpoint}` | counter | Retry attempts |
 
 === "API"
 
-    | معیار | نوع | معنی |
+    | Metric | Type | Meaning |
     |---|---|---|
-    | `tsetmc_api_requests_total{route,method,status}` | counter | درخواست‌ها به تفکیک الگوی مسیر |
-    | `tsetmc_api_request_duration_seconds{route}` | histogram | تأخیر (SSE از آن کنار گذاشته شده است) |
+    | `tsetmc_api_requests_total{route,method,status}` | counter | Requests broken down by route pattern |
+    | `tsetmc_api_request_duration_seconds{route}` | histogram | Latency (SSE is excluded) |
     | `tsetmc_api_cache_total{result}` | counter | hit / miss / shared / not_modified |
-    | `tsetmc_api_sse_clients` | gauge | پنل‌های باز با اتصال زنده |
-    | `tsetmc_api_database_unavailable_total` | counter | پاسخ‌های 503 به‌خاطر قطعی ClickHouse |
+    | `tsetmc_api_sse_clients` | gauge | Panels with a live open connection |
+    | `tsetmc_api_database_unavailable_total` | counter | 503 responses due to a ClickHouse outage |
 
-    با چند worker، هر پروسه معیارهایش را در یک پوشه‌ی مشترک می‌نویسد و `/metrics` جمع همه را برمی‌گرداند (حالت multiprocess در prometheus_client).
+    With multiple workers, each process writes its metrics to a shared directory and `/metrics` returns the aggregate of all of them (prometheus_client's multiprocess mode).
 
 === "ClickHouse"
 
-    خروجی داخلی ClickHouse (`docker/clickhouse/prometheus.xml`، پورت ۹۳۶۳). داشبورد و هشدارها از این‌ها استفاده می‌کنند: `ClickHouseProfileEvents_SelectQuery` / `InsertQuery` / `FailedQuery` / `InsertedRows`، `ClickHouseMetrics_MemoryTracking` / `Merge`، و `ClickHouseAsyncMetrics_MaxPartCountForPartition` / `FilesystemMainPath*Bytes`.
+    ClickHouse's built-in exporter (`docker/clickhouse/prometheus.xml`, port 9363). Dashboards and alerts use these: `ClickHouseProfileEvents_SelectQuery` / `InsertQuery` / `FailedQuery` / `InsertedRows`, `ClickHouseMetrics_MemoryTracking` / `Merge`, and `ClickHouseAsyncMetrics_MaxPartCountForPartition` / `FilesystemMainPath*Bytes`.
 
-!!! tip "یک تست جلوی «داشبورد بی‌داده» را می‌گیرد"
-    `tests/test_monitoring_config.py` هر نام معیار `tsetmc_*` در قواعد و داشبوردها را با معیارهایی که واقعاً ثبت شده‌اند مقایسه می‌کند. داشبوردی که معیار ناموجود را بپرسد همیشه «No data» نشان می‌دهد، که شبیه آرامش است و به همین دلیل خطرناک‌ترین نوع خطای پایش است. همان تست بررسی می‌کند که هر jobی که قواعد به آن ارجاع می‌دهند واقعاً خوانده شود، لینک راهنمای هر هشدار در این صفحه وجود داشته باشد، و JSON داشبوردها با کدشان یکی باشد.
+!!! tip "A test catches the \"dashboard with no data\" problem"
+    `tests/test_monitoring_config.py` compares every `tsetmc_*` metric name in the rules and dashboards against metrics that are actually registered. A dashboard that queries a nonexistent metric always shows "No data," which looks like calm and is exactly why it's the most dangerous kind of monitoring failure. The same test checks that every job the rules reference is actually scraped, that each alert on this page has a runbook link, and that the dashboards' JSON matches their code.
 
-## داشبوردها
+## Dashboards
 
-داشبوردها در `monitoring/grafana/build_dashboards.py` تعریف و با `python monitoring/grafana/build_dashboards.py` به JSON تبدیل می‌شوند. Grafana آن‌ها را هنگام شروع بارگذاری می‌کند و ویرایش در رابط کاربری بسته است، چون تغییر باید در کد و در بازبینی دیده شود.
+Dashboards are defined in `monitoring/grafana/build_dashboards.py` and converted to JSON with `python monitoring/grafana/build_dashboards.py`. Grafana loads them at startup, and editing in the UI is disabled, because changes need to go through code and review.
 
-!!! note "پیکربندی داخل ایمیج است"
-    داشبوردها، قواعد Prometheus، پیکربندی Alertmanager و `prometheus.xml` ClickHouse در ایمیج کپی می‌شوند، نه از دیسک mount. پس از هر تغییر: `docker compose --profile monitoring up -d --build`. دلیلش در [ADR 0009](adr/0009-observability.md#بازبینی-پیکربندی-داخل-ایمیج-نه-mount) آمده است.
+!!! note "Configuration lives inside the image"
+    Dashboards, Prometheus rules, Alertmanager configuration, and ClickHouse's `prometheus.xml` are copied into the image, not mounted from disk. After any change: `docker compose --profile monitoring up -d --build`. The reasoning is in [ADR 0009](adr/0009-observability.md#config-baked-into-image-not-mounted).
 
-| داشبورد | سؤال | پنل‌ها |
+| Dashboard | Question | Panels |
 |---|---|---|
-| **نمای کلی** | همه چیز سالم است؟ | در دسترس بودن collector، API و ClickHouse، باز بودن بازار، عمر آخرین داده، شکست پیاپی، **هشدارهای فعال**، چرخه‌ها و درخواست‌ها |
-| **دریافت داده** | داده کامل و به‌موقع می‌آید؟ | رهبر، تأیید جلسه، کامل بودن، نتیجه و مدت چرخه‌ها، درخواست‌ها و تأخیر هر endpoint، retry، رخدادهای کیفیت و ردیف‌های اصلاح‌شده |
-| **API** | پنل سریع و درست جواب می‌گیرد؟ | درخواست در ثانیه، نسبت ۵xx، صدک ۹۵ تأخیر، نرخ استفاده از کش، اتصال‌های زنده، 503ها، تأخیر هر مسیر |
-| **ClickHouse** | پایگاه داده جا و توان دارد؟ | در دسترس بودن، فضای دیسک، بیشترین part در یک پارتیشن، حافظه، کوئری‌ها و ردیف‌های درج‌شده، زمان SELECT، ادغام‌ها |
+| **Overview** | Is everything healthy? | Availability of collector, API, and ClickHouse; whether the market is open; age of the latest data; consecutive failures; **active alerts**; cycles and requests |
+| **Data Ingestion** | Is data arriving complete and on time? | Leader, session confirmation, completeness, cycle outcome and duration, per-endpoint requests and latency, retries, quality events, and repaired rows |
+| **API** | Is the panel fast and correct? | Requests per second, 5xx ratio, p95 latency, cache hit rate, live connections, 503s, per-route latency |
+| **ClickHouse** | Does the database have room and headroom? | Availability, disk space, max parts in a partition, memory, queries and inserted rows, SELECT time, merges |
 
-همه‌ی کوئری‌های داشبوردها روی یک Prometheus واقعی اجرا شدند. در اجرای اول ۴۲ کوئری از ۴۴ کوئری داده داشتند. دو کوئری باقی‌مانده معیارهایی بودند که فقط هنگام خطا مقدار می‌گیرند (retry و ۵xx) و «No data» نشان می‌دادند، که با «هیچ خطایی نیست» فرق دارد. حالا این دو کوئری در نبود خطا صفر نشان می‌دهند، و پس از تمرین قطعی هر ۴۵ کوئری داده داشتند.
+All dashboard queries were run against a real Prometheus. On the first run, 42 of 44 queries had data. The remaining two were metrics that only get a value on error (retries and 5xx) and showed "No data," which is different from "no errors at all." Now those two queries show zero when there are no errors, and after the outage drill all 45 queries had data.
 
-## هشدارها و راهنمای رفع
+## Alerts and Remediation Guide {#alerts-and-remediation-guide}
 
-هشدارهای **بحرانی** یعنی داده از دست می‌رود یا کاربر چیزی نمی‌بیند (تکرار هر ۳۰ دقیقه). **هشدار** یعنی کیفیت پایین آمده است (تکرار هر ۴ ساعت). Alertmanager علت ریشه‌ای را جایگزین پیامدهایش می‌کند: وقتی ClickHouse قطع است، «داده‌ی قدیمی» و «خطای API» جداگانه فرستاده نمی‌شوند، و وقتی collector پشت سر هم شکست می‌خورد، «خطای منبع» و «کامل نبودن داده» ساکت می‌مانند. پس هر رخداد یک پیام است.
+**Critical** alerts mean data is being lost or the user can't see something (repeats every 30 minutes). **Warning** means quality has degraded (repeats every 4 hours). Alertmanager replaces a root cause's downstream effects: when ClickHouse is down, "stale data" and "API errors" aren't sent separately, and when the collector fails repeatedly, "source errors" and "incomplete data" stay silent. So each incident is one message.
 
 <figure class="shot half">
 <img src="assets/screens/alertmanager.webp" alt="Alertmanager">
-<figcaption>Alertmanager در تمرین قطعی: هشدار بحرانی collector، گروه‌بندی‌شده و آماده‌ی ارسال به relay.</figcaption>
+<figcaption>Alertmanager during the outage drill: a critical collector alert, grouped and ready to send to the relay.</figcaption>
 </figure>
 
-### collector در دسترس نیست {#collector-down}
+### Collector Unavailable {#collector-down}
 
-**`TsetmcCollectorDown`** · بحرانی · ۲ دقیقه. Prometheus به هیچ نمونه‌ای از collector دسترسی ندارد. در ساعات بازار، هر دقیقه‌ای که بگذرد داده‌ای از دست می‌رود که [قابل بازیابی نیست](adr/0003-raw-first-ingestion.md).
+**`TsetmcCollectorDown`** · critical · 2 minutes. Prometheus can't reach any collector instance. During market hours, every minute that passes means data that [can't be recovered](adr/0003-raw-first-ingestion.md).
 
 ```bash
-docker compose ps collector            # Exited؟ unhealthy؟
+docker compose ps collector            # Exited? unhealthy?
 docker compose logs --tail=100 collector
 docker compose up -d collector
 ```
 
-### collector رهبر ندارد {#no-leader}
+### Collector Has No Leader {#no-leader}
 
-**`TsetmcNoLeader`** · بحرانی · ۳ دقیقه. collectorها بالا هستند اما هیچ‌کدام lease رهبری را ندارند. معمولاً Redis قطع بوده و نمونه‌ها هنوز lease را دوباره نگرفته‌اند (هر ۱۵ ثانیه تلاش می‌کنند). `docker compose ps redis` و لاگ `leadership` را ببینید.
+**`TsetmcNoLeader`** · critical · 3 minutes. Collectors are up, but none holds the leadership lease. This usually means Redis was down and the instances haven't reacquired the lease yet (they retry every 15 seconds). Check `docker compose ps redis` and the `leadership` log.
 
-### بیش از یک رهبر {#split-brain}
+### More Than One Leader {#split-brain}
 
-**`TsetmcSplitBrain`** · هشدار · ۵ دقیقه. چند نمونه هم‌زمان داده جمع می‌کنند. داده خراب نمی‌شود، چون کلید هر ردیف (صندوق، دقیقه) است و ClickHouse تکراری‌ها را حذف می‌کند، ولی بار روی TSETMC چند برابر است. علت معمول: Redis خطا می‌دهد و هر نمونه طبق طراحی خودش را رهبر فرض می‌کند ([ADR 0010](adr/0010-high-availability.md)).
+**`TsetmcSplitBrain`** · warning · 5 minutes. Multiple instances are collecting data at the same time. Data doesn't get corrupted, because each row's key is (fund, minute) and ClickHouse deduplicates, but the load on TSETMC is multiplied. Common cause: Redis is erroring and each instance assumes it's the leader, by design ([ADR 0010](adr/0010-high-availability.md)).
 
-### چرخه‌ها پشت سر هم شکست می‌خورند {#collector-failing}
+### Cycles Failing Repeatedly {#collector-failing}
 
-**`TsetmcCollectorFailing`** · بحرانی · ۱ دقیقه. شایع‌ترین علت روی سیستم توسعه این است که **VPN روشن است** و TSETMC IP خارجی را رد می‌کند. در لاگ collector دنبال `source error` بگردید. اگر خطا `ConnectError` یا `403` است، [شبکه](08-runbook.md#شبکه-vpn-و-tsetmc) را درست کنید. collector خودش ادامه می‌دهد و restart لازم نیست.
+**`TsetmcCollectorFailing`** · critical · 1 minute. The most common cause on a dev machine is that **the VPN is on** and TSETMC rejects the foreign IP. Look for `source error` in the collector log. If the error is `ConnectError` or `403`, fix the [network](08-runbook.md#vpn-and-tsetmc-networking). The collector keeps going on its own; no restart is needed.
 
-### بازار باز است ولی داده‌ی تازه ثبت نمی‌شود {#data-stale}
+### Market Is Open but No Fresh Data Is Being Recorded {#data-stale}
 
-**`TsetmcDataStale`** · بحرانی · ۲ دقیقه. بازار همین الان باز است (`tsetmc_market_open == 1`، سیگنال زنده — نه `tsetmc_session_confirmed` که تا آخر روز تقویمی ۱ می‌ماند و بعد از بسته شدن بازار هم ۱ است)، اما بیش از ۵ دقیقه است که هیچ چرخه‌ای داده ننوشته است. اگر collector شکست نمی‌خورد، معمولاً نوشتن در ClickHouse مشکل دارد: لاگ‌های `cycle crashed` را ببینید.
+**`TsetmcDataStale`** · critical · 2 minutes. The market is open right now (`tsetmc_market_open == 1`, a live signal — not `tsetmc_session_confirmed`, which stays 1 for the rest of the calendar day and remains 1 even after the market closes), but no cycle has written data for more than 5 minutes. If the collector isn't failing, writing to ClickHouse is usually the problem: check the `cycle crashed` logs.
 
-### کامل نبودن داده {#low-completeness}
+### Incomplete Data {#low-completeness}
 
-**`TsetmcLowCompleteness`** · هشدار · ۱۰ دقیقه. در هر چرخه کمتر از ۹۰٪ صندوق‌ها دریافت می‌شوند. داشبورد «دریافت داده» → «درخواست‌ها بر اساس نتیجه» نشان می‌دهد کدام endpoint خطا دارد (معمولاً NAV یک صندوق).
+**`TsetmcLowCompleteness`** · warning · 10 minutes. Fewer than 90% of funds are received in each cycle. The "Data Ingestion" dashboard → "Requests by outcome" shows which endpoint is erroring (usually one fund's NAV).
 
-### خطای منبع داده {#source-errors}
+### Data Source Errors {#source-errors}
 
-**`TsetmcSourceErrors`** · هشدار · ۱۰ دقیقه. بیش از ۲۰٪ درخواست‌ها، حتی پس از retry، ناموفق‌اند. TSETMC کند یا ناپایدار است. اگر ادامه پیدا کند، `HTTP_MAX_CONCURRENCY` را کمتر کنید.
+**`TsetmcSourceErrors`** · warning · 10 minutes. More than 20% of requests fail even after retries. TSETMC is slow or unstable. If it persists, lower `HTTP_MAX_CONCURRENCY`.
 
-### چرخه‌های کند {#slow-cycles}
+### Slow Cycles {#slow-cycles}
 
-**`TsetmcSlowCycles`** · هشدار · ۱۵ دقیقه. صدک ۹۵ مدت چرخه از ۴۵ ثانیه گذشته است. با بودجه‌ی ۶۰ ثانیه‌ای، دقیقه‌ها به‌زودی جا می‌افتند. پنل «تأخیر هر endpoint» نشان می‌دهد کدام درخواست کند شده است ([بودجه‌ی چرخه](01-architecture.md)).
+**`TsetmcSlowCycles`** · warning · 15 minutes. p95 cycle duration has passed 45 seconds. With a 60-second budget, minutes will soon start slipping. The "per-endpoint latency" panel shows which request has slowed down ([cycle budget](01-architecture.md)).
 
-### API در دسترس نیست {#api-down}
+### API Unavailable {#api-down}
 
-**`TsetmcApiDown`** · بحرانی · ۲ دقیقه. `docker compose ps api` و `docker compose logs api`. پنل در این حالت پیام خطا نشان می‌دهد.
+**`TsetmcApiDown`** · critical · 2 minutes. `docker compose ps api` and `docker compose logs api`. The panel shows an error message in this state.
 
-### خطای API {#api-errors}
+### API Errors {#api-errors}
 
-**`TsetmcApiErrors`** · هشدار · ۵ دقیقه. بیش از ۵٪ پاسخ‌ها ۵xx هستند. قطعی ClickHouse پاسخ 503 می‌دهد و هشدار جداگانه‌ی خودش را دارد. ۵۰۰ یعنی باگ است: traceback در لاگ API.
+**`TsetmcApiErrors`** · warning · 5 minutes. More than 5% of responses are 5xx. A ClickHouse outage returns 503 and has its own separate alert. A 500 means there's a bug: check the traceback in the API log.
 
-### API کند است {#api-slow}
+### API Is Slow {#api-slow}
 
-**`TsetmcApiSlow`** · هشدار · ۱۰ دقیقه. صدک ۹۵ از ۰٫۵ ثانیه گذشته است (در حالت عادی زیر ۰٫۰۵). پنل «نرخ استفاده از کش» را ببینید: اگر افتاده باشد، احتمالاً Redis قطع است و هر درخواست به ClickHouse می‌رسد ([آزمون بار](09-quality-engineering.md#آزمون-بار)).
+**`TsetmcApiSlow`** · warning · 10 minutes. p95 has passed 0.5 seconds (normally under 0.05). Check the "cache hit rate" panel: if it has dropped, Redis is probably down and every request is hitting ClickHouse ([load test](09-quality-engineering.md#load-test)).
 
-### ClickHouse در دسترس نیست {#clickhouse-down}
+### ClickHouse Unavailable {#clickhouse-down}
 
-**`ClickHouseDown`** و **`ClickHouseUnavailableForApi`** · بحرانی · ۲ دقیقه. هیچ داده‌ای ذخیره نمی‌شود و API پاسخ 503 می‌دهد. `docker compose logs clickhouse`. شایع‌ترین علت‌ها کمبود حافظه و پر بودن دیسک هستند.
+**`ClickHouseDown`** and **`ClickHouseUnavailableForApi`** · critical · 2 minutes. No data is being stored and the API returns 503. `docker compose logs clickhouse`. The most common causes are low memory and a full disk.
 
-### تعداد part زیاد {#too-many-parts}
+### Too Many Parts {#too-many-parts}
 
-**`ClickHouseTooManyParts`** · هشدار · ۱۰ دقیقه. ادغام‌ها از درج‌ها عقب مانده‌اند. در ۳۰۰۰ part، ClickHouse درج را رد می‌کند. در این سرویس هر چرخه یک درج دسته‌ای است، پس این هشدار معمولاً یعنی دیسک یا CPU کم است، یا replay بزرگی در حال اجراست.
+**`ClickHouseTooManyParts`** · warning · 10 minutes. Merges have fallen behind inserts. At 3000 parts, ClickHouse rejects inserts. In this service each cycle is one batch insert, so this alert usually means disk or CPU is low, or a large replay is running.
 
-### دیسک رو به پر شدن {#disk-low}
+### Disk Filling Up {#disk-low}
 
-**`ClickHouseDiskLow`** · هشدار · ۱۰ دقیقه. کمتر از ۱۰٪ فضای آزاد. بزرگ‌ترین مصرف‌کننده پاسخ‌های خام است (حدود ۱۲۰ مگابایت در روز با TTL سی‌روزه، [محدودیت‌ها](10-limitations.md#محدودیتهای-عملیاتی)). TTL را کوتاه‌تر یا دیسک را بزرگ‌تر کنید.
+**`ClickHouseDiskLow`** · warning · 10 minutes. Less than 10% free space. The biggest consumer is raw responses (about 120 MB/day with a 30-day TTL, [limitations](10-limitations.md#operational-limitations)). Shorten the TTL or grow the disk.
 
-### کوئری‌های ناموفق {#failed-queries}
+### Failed Queries {#failed-queries}
 
-**`ClickHouseFailedQueries`** · هشدار · ۱۰ دقیقه. در کارکرد عادی هیچ کوئری ناموفقی نیست. لاگ API را برای `DatabaseError` ببینید. معمولاً یعنی schema با کد هم‌خوان نیست (مایگریشن اجرا نشده است).
+**`ClickHouseFailedQueries`** · warning · 10 minutes. Under normal operation there are no failed queries. Check the API log for `DatabaseError`. This usually means the schema doesn't match the code (a migration hasn't been run).
 
-## تست قواعد هشدار
+## Testing Alert Rules
 
-قواعد هشدار هم کد هستند و تست دارند: `monitoring/prometheus/rules/tsetmc_test.yml`. هر سناریو یک سری زمانی مصنوعی می‌سازد و بررسی می‌کند که هشدار **درست در زمان مقرر** روشن شود، متن فارسی‌اش درست باشد، و در حالت مشابهِ بی‌خطر (مثلاً داده‌ی قدیمی وقتی بازار بسته است) روشن **نشود**.
+Alert rules are code too, and have tests: `monitoring/prometheus/rules/tsetmc_test.yml`. Each scenario builds a synthetic time series and checks that the alert fires **exactly when expected**, that its Persian text is correct, and that it does **not** fire in a similarly harmless state (e.g. stale data while the market is closed).
 
 ```bash
-promtool test rules monitoring/prometheus/rules/tsetmc_test.yml   # CI همین را اجرا می‌کند
+promtool test rules monitoring/prometheus/rules/tsetmc_test.yml   # CI runs this exact command
 ```
 
-یک باگ واقعی را همین تست‌ها پیدا کردند: در عبارت `A and B`، مقدار هشدار (`$value`) از سمت چپ می‌آید. در نسخه‌ی اول هشدار «داده‌ی قدیمی» سمت چپ `session_confirmed` بود و پیام «۱ ثانیه پیش» می‌گفت. ترتیب دو طرف عوض شد.
+These tests found a real bug: in the expression `A and B`, the alert value (`$value`) comes from the left-hand side. In the first version of the "stale data" alert, `session_confirmed` was on the left, and the message said "1 second ago." The order of the two sides was swapped.
 
-## تمرین قطعی روی سیستم واقعی {#تمرین-قطعی-روی-سیستم-واقعی}
+## Live Outage Drill on a Real System {#live-outage-drill}
 
-کل زنجیره یک بار با باینری‌های واقعی Prometheus 2.55 و Alertmanager 0.27 اجرا شد. دو collector، API با دو worker و alert-relay روی یک کپی از پاسخ‌های واقعی TSETMC کار می‌کردند:
+The whole chain was run once with real Prometheus 2.55 and Alertmanager 0.27 binaries. Two collectors, an API with two workers, and alert-relay operated on a copy of TSETMC's real responses:
 
-| گام | نتیجه |
+| Step | Result |
 |---|---|
-| همه‌ی targetها | ۷ از ۷ `up`: دو collector، API، ClickHouse، relay، Prometheus، Alertmanager |
-| رهبری | یک collector رهبر (`leader=1`) و دیگری آماده‌به‌کار (`0`) |
-| `docker stop` روی رهبر | lease آزاد شد و نمونه‌ی دوم **حدود ۲ ثانیه بعد** رهبر شد |
-| قطع TSETMC | پس از ۳ چرخه‌ی ناموفق، `TsetmcCollectorFailing` از pending به firing رفت، Alertmanager آن را به relay داد، و پیام فارسی بالا تحویل webhook شد |
-| وصل دوباره‌ی TSETMC | `failed_streak` به صفر برگشت و هشدار رفع شد |
-| کوئری‌های داشبورد | هر ۴۵ کوئری روی Prometheus واقعی داده داشتند |
+| All targets | 7 of 7 `up`: two collectors, API, ClickHouse, relay, Prometheus, Alertmanager |
+| Leadership | One collector was leader (`leader=1`), the other standby (`0`) |
+| `docker stop` on the leader | The lease was released and the second instance became leader **about 2 seconds later** |
+| TSETMC cut off | After 3 failed cycles, `TsetmcCollectorFailing` went from pending to firing, Alertmanager handed it to the relay, and the Persian message above was delivered to the webhook |
+| TSETMC reconnected | `failed_streak` returned to zero and the alert resolved |
+| Dashboard queries | All 45 queries had data against the real Prometheus |
 
-!!! note "Grafana در این تمرین نبود"
-    ایمیج Grafana در محیط ساخت در دسترس نبود. JSON داشبوردها با تست بررسی شده‌اند و کوئری‌هایشان روی Prometheus واقعی اجرا شده‌اند، و آزمون دود CI بارگذاری هر چهار داشبورد در Grafana را بررسی می‌کند. تصویر داشبوردها با اولین اجرای کامل روی سیستم کاربر گرفته می‌شود.
+!!! note "Grafana wasn't part of this drill"
+    The Grafana image wasn't available in the build environment. The dashboards' JSON has been checked by tests and their queries were run against a real Prometheus, and the CI smoke test checks that all four dashboards load in Grafana. A screenshot of the dashboards will be taken on the user's first full run.

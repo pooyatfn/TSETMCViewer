@@ -1,102 +1,102 @@
-# کیفیت داده و پیش‌پردازش
+# Data Quality and Preprocessing
 
-<p class="lead">پس از هر دریافت، پیش از نوشتن در دیتابیس، کامل بودن و درستی داده بررسی می‌شود. هر مشکل یا با اطلاعات موجود اصلاح می‌شود یا پرچم می‌خورد، و هر دو در گزارش کیفیت ثبت می‌شوند.</p>
+<p class="lead">After every fetch, before writing to the database, data completeness and correctness are checked. Every issue is either corrected using the information at hand or flagged, and both are recorded in the quality report.</p>
 
 <div class="kpis">
-  <div class="kpi"><b>۱۰</b><span>بررسی در هر چرخه</span></div>
-  <div class="kpi"><b>۱۳</b><span>پرچم کیفیت روی هر تیک</span></div>
-  <div class="kpi"><b>۰</b><span>اصلاح بی‌صدا</span></div>
-  <div class="kpi"><b>۳ میلی‌ثانیه</b><span>میانه‌ی زمان اعتبارسنجی ۱۵۰ صندوق</span></div>
+  <div class="kpi"><b>10</b><span>checks per cycle</span></div>
+  <div class="kpi"><b>13</b><span>quality flags per tick</span></div>
+  <div class="kpi"><b>0</b><span>silent corrections</span></div>
+  <div class="kpi"><b>3 ms</b><span>median validation time for 150 funds</span></div>
 </div>
 
 <figure class="diagram">
-<img src="assets/diagrams/validation.svg" alt="مراحل اعتبارسنجی هر چرخه">
-<figcaption>شکل ۱ — چهار گروه بررسی روی تیک‌های هر چرخه، به ترتیب. هر بررسی تیک فعلی را با قواعد بازار و با تیک قبلی همان صندوق مقایسه می‌کند.</figcaption>
+<img src="assets/diagrams/validation.svg" alt="Validation stages per cycle">
+<figcaption>Figure 1 — Four groups of checks on each cycle's ticks, in order. Each check compares the current tick against market rules and against the same fund's previous tick.</figcaption>
 </figure>
 
-## اصول
+## Principles
 
 <div class="grid cards two" markdown>
 
--   :material-eye-outline: __هیچ اصلاحی بی‌صدا نیست__
+-   :material-eye-outline: __No correction is silent__
 
     ---
 
-    هر تغییر دو ردپا دارد: یک بیت در `quality_flags` همان ردیف، و یک ردیف در `data_quality_log` که می‌گوید چه دیده شد و چه کاری انجام شد. داده‌ی خام هم دست‌نخورده در `raw_snapshots` می‌ماند.
+    Every change leaves two traces: a bit in that row's `quality_flags`, and a row in `data_quality_log` saying what was seen and what was done. The raw data also stays untouched in `raw_snapshots`.
 
--   :material-history: __فقط با اطلاعاتی که داریم__
-
-    ---
-
-    اصلاح یعنی ادامه‌ی آخرین مقدار معتبر (forward-fill)، نه درون‌یابی. درون‌یابی حجم یا قیمت یعنی ساختن معامله‌ای که انجام نشده، و برای داده‌ی مالی این از نبود داده بدتر است.
-
--   :material-scale-balance: __قاعده‌ی بازار، نه آمار عمومی__
+-   :material-history: __Only with the information we have__
 
     ---
 
-    بورس تهران دامنه‌ی نوسان روزانه دارد. قیمتی خارج از این دامنه **ناممکن** است و نیازی به z-score یا MAD نیست. آزمون‌های آماری عمومی در بازاری با دامنه‌ی نوسان یا هشدار کاذب می‌دهند یا خطای واقعی را نمی‌بینند.
+    Correction means carrying forward the last valid value (forward-fill), not interpolation. Interpolating volume or price means fabricating a trade that never happened, and for financial data that's worse than missing data.
 
--   :material-bell-ring-outline: __ثبت لبه‌ای__
+-   :material-scale-balance: __Market rules, not generic statistics__
 
     ---
 
-    شرایط ماندگار (NAV کهنه، صندوق غایب، فید منجمد) فقط **در شروع هر رخداد** یک ردیف گزارش می‌سازند، نه یکی در هر دقیقه. پرچم همچنان روی همه‌ی تیک‌های درگیر می‌نشیند. گزارش خوانا می‌ماند و فیلتر داده دقیق.
+    The Tehran Stock Exchange has a daily price band. A price outside that band is **impossible**, and there's no need for a z-score or MAD. Generic statistical tests in a market with a price band either produce false alarms or miss real errors.
+
+-   :material-bell-ring-outline: __Edge-triggered logging__
+
+    ---
+
+    Persistent conditions (stale NAV, missing fund, frozen feed) create exactly one log row **at the start of each occurrence**, not one every minute. The flag still lands on every affected tick. The report stays readable, and data filtering stays precise.
 
 </div>
 
-## فهرست بررسی‌ها
+## Checks
 
-| # | بررسی | شرط | شدت | اقدام | پرچم |
+| # | Check | Condition | Severity | Action | Flag |
 |:-:|---|---|:-:|---|---|
-| 1 | `missing_fund` | صندوقِ فهرست امروز در دیده‌بان نیست | warn | ادامه‌ی تیک قبلی (تا ۳۰ دقیقه)؛ وگرنه حذف | `FORWARD_FILLED` |
-| 2 | `gap` | فاصله‌ی تیک فعلی با قبلی بیش از یک دقیقه (در ساعات بازار) | warn | ساخت تیک برای دقیقه‌های جاافتاده با مقدار قبلی؛ اگر بیش از ۳۰ دقیقه، باز می‌ماند | `FORWARD_FILLED` |
-| 3 | `feed_stale` | بیشترین `hEven` کل دیده‌بان در ۳ چرخه‌ی پیاپی تغییر نکرده | error | پرچم روی همه‌ی تیک‌ها | `STALE_QUOTE` |
-| 4 | `price_out_of_band` | آخرین یا پایانی خارج از `[pMin, pMax]` روز | error | جایگزینی با قیمت تیک قبلی؛ اگر نبود، نگه داشتن | `PRICE_OUT_OF_RANGE` |
-| 5 | `ohlc_inconsistent` | بیشترین/کمترین شامل اولین و آخرین نیست | warn | بازمحاسبه‌ی بیشترین و کمترین | `RANGE_REPAIRED` |
-| 6 | `cumulative_decrease` | حجم، ارزش، تعداد یا حجم حقیقی/حقوقی نسبت به تیک قبلی همان روز کم شده | error | نگه داشتن مقدار قبلی (یکنواخت‌سازی) | `CUMULATIVE_DECREASE` |
-| 7 | `client_volume_mismatch` | اختلاف جمع خرید (یا فروش) حقیقی و حقوقی با حجم کل بیش از ۲٪ | warn | فقط پرچم | `CLIENT_VOLUME_MISMATCH` |
-| 8 | `nav_missing` | درخواست NAV شکست خورد یا مقدار نداشت | warn | ادامه‌ی NAV قبلی همراه با زمان محاسبه‌ی آن | `NAV_MISSING`، `NAV_CARRIED` |
-| 9 | `nav_stale` | زمان محاسبه‌ی NAV بیش از ۲۰ دقیقه قبل از تیک است | info | فقط پرچم | `NAV_STALE` |
-| 10 | `nav_jump` | تغییر NAV نسبت به تیک قبلی بیش از ۱۰٪ | warn | فقط پرچم؛ مقدار دست نمی‌خورد | `NAV_JUMP` |
+| 1 | `missing_fund` | A fund on today's list isn't in the market watch | warn | Carry forward the previous tick (up to 30 minutes); otherwise drop | `FORWARD_FILLED` |
+| 2 | `gap` | The gap between the current tick and the previous one exceeds one minute (during market hours) | warn | Build ticks for the missed minutes using the previous value; if over 30 minutes, it's left open | `FORWARD_FILLED` |
+| 3 | `feed_stale` | The whole market watch's maximum `hEven` hasn't changed in 3 consecutive cycles | error | Flag on all ticks | `STALE_QUOTE` |
+| 4 | `price_out_of_band` | Last or close price is outside the day's `[pMin, pMax]` | error | Replace with the previous tick's price; if none, keep it | `PRICE_OUT_OF_RANGE` |
+| 5 | `ohlc_inconsistent` | High/low doesn't include open and last | warn | Recompute high and low | `RANGE_REPAIRED` |
+| 6 | `cumulative_decrease` | Volume, value, count, or retail/institutional volume decreased relative to the previous tick of the same day | error | Keep the previous value (monotonicity enforcement) | `CUMULATIVE_DECREASE` |
+| 7 | `client_volume_mismatch` | Sum of retail and institutional buy (or sell) differs from total volume by more than 2% | warn | Flag only | `CLIENT_VOLUME_MISMATCH` |
+| 8 | `nav_missing` | The NAV request failed or had no value | warn | Carry forward the previous NAV along with its calculation time | `NAV_MISSING`, `NAV_CARRIED` |
+| 9 | `nav_stale` | NAV calculation time is more than 20 minutes before the tick | info | Flag only | `NAV_STALE` |
+| 10 | `nav_jump` | NAV change relative to the previous tick exceeds 10% | warn | Flag only; the value is untouched | `NAV_JUMP` |
 
-همه‌ی آستانه‌ها با متغیر محیطی قابل تنظیم‌اند (`VALIDATION_NAV_STALE_MINUTES`، `VALIDATION_NAV_JUMP_RATIO`، `VALIDATION_CLIENT_MISMATCH_RATIO`، `VALIDATION_MAX_GAP_FILL_MINUTES`، `VALIDATION_FEED_STALE_CYCLES`).
+All thresholds are configurable via environment variables (`VALIDATION_NAV_STALE_MINUTES`, `VALIDATION_NAV_JUMP_RATIO`, `VALIDATION_CLIENT_MISMATCH_RATIO`, `VALIDATION_MAX_GAP_FILL_MINUTES`, `VALIDATION_FEED_STALE_CYCLES`).
 
-## چرا این روش‌ها؟
+## Why these methods?
 
-??? question "چرا forward-fill و نه درون‌یابی خطی؟"
-    اگر collector ساعت ۱۰:۰۲ تا ۱۰:۰۴ قطع باشد، ما نمی‌دانیم در این سه دقیقه چه معامله‌ای شده است. درون‌یابی خطی حجم تجمعی، معامله‌هایی با توزیع یکنواخت می‌سازد که شاید هرگز رخ نداده‌اند. forward-fill فقط می‌گوید «آخرین چیزی که دیدیم این بود» و پرچم `FORWARD_FILLED` این را صریح می‌کند. نمودارها پیوسته می‌مانند و تحلیلی که دقت لازم دارد این ردیف‌ها را کنار می‌گذارد.
+??? question "Why forward-fill and not linear interpolation?"
+    If the collector is down from 10:02 to 10:04, we don't know what trades happened during those three minutes. Linearly interpolating cumulative volume manufactures trades with a uniform distribution that may never have occurred. Forward-fill just says "the last thing we saw was this", and the `FORWARD_FILLED` flag makes that explicit. Charts stay continuous, and analysis that needs precision can filter these rows out.
 
-??? question "چرا قیمت خارج از دامنه با قیمت قبلی جایگزین می‌شود، نه حذف؟"
-    حذف ردیف یعنی سوراخ در سری زمانی، و بقیه‌ی ستون‌های همان ردیف (NAV، حقیقی/حقوقی) هم از دست می‌روند. خطا فقط در یک ستون است، پس فقط همان ستون اصلاح می‌شود. مقدار اصلی در پاسخ خام محفوظ است و با `replay` قابل بازسازی است.
+??? question "Why is an out-of-band price replaced with the previous price instead of being dropped?"
+    Dropping a row means a hole in the time series, and the rest of that row's columns (NAV, retail/institutional) are lost too. The error is in just one column, so only that column is corrected. The original value is preserved in the raw response and can be reconstructed with `replay`.
 
-??? question "چرا عدم تطابق حقیقی/حقوقی فقط پرچم می‌خورد؟"
-    `ClientTypeAll` و دیده‌بان دو endpoint جدا هستند و در یک لحظه‌ی دقیق گرفته نمی‌شوند؛ اختلاف چندثانیه‌ای بین آن‌ها طبیعی است. هیچ‌کدام بر دیگری برتری ندارد، پس داده‌ای برای اصلاح وجود ندارد. پرچم به نمودار ورود پول حقیقی اجازه می‌دهد این دقیقه‌ها را کم‌رنگ نشان دهد.
+??? question "Why does a retail/institutional mismatch only get flagged?"
+    `ClientTypeAll` and the market watch are two separate endpoints and aren't captured at the exact same instant; a few seconds of difference between them is normal. Neither takes precedence over the other, so there's no basis for correction. The flag lets the retail-money-flow chart render these minutes faded.
 
-??? question "چرا جهش NAV اصلاح نمی‌شود؟"
-    تغییر بیش از ۱۰٪ در چند دقیقه برای صندوق سهامی بعید است، اما برای صندوق اهرمی در روز پرنوسان ممکن است. همچنین ممکن است نشانه‌ی رویداد شرکتی باشد (مثلاً تجزیه‌ی واحدها). تصمیم با تحلیل‌گر است، پس فقط پرچم می‌خورد.
+??? question "Why isn't a NAV jump corrected?"
+    A change of more than 10% within a few minutes is unlikely for an equity fund, but possible for a leveraged fund on a volatile day. It can also signal a corporate event (e.g. a unit split). The decision is left to the analyst, so it's only flagged.
 
-## پر کردن شکاف و ثبت لبه‌ای، در عمل
+## Gap-filling and edge logging, in practice
 
 <figure class="diagram">
-<img src="assets/diagrams/quality-timelines.svg" alt="پر کردن شکاف و ثبت لبه‌ای">
-<figcaption>شکل ۲ — بالا: سه دقیقه‌ی جاافتاده با مقدار آخرین تیک واقعی پر می‌شوند. پایین: NAV کهنه در هر تیک پرچم می‌خورد، اما در شروع هر رخداد فقط یک ردیف گزارش ساخته می‌شود.</figcaption>
+<img src="assets/diagrams/quality-timelines.svg" alt="Gap-filling and edge logging">
+<figcaption>Figure 2 — Top: three missed minutes are filled with the value of the last real tick. Bottom: a stale NAV is flagged on every tick, but only one log row is created at the start of each occurrence.</figcaption>
 </figure>
 
-## حالت validator
+## Validator state
 
-validator تنها بخش **حالت‌دار** pipeline است، چون چند بررسی به تیک قبلی نیاز دارند:
+The validator is the only **stateful** part of the pipeline, since several checks need the previous tick:
 
-| حالت | کاربرد | مدیریت |
+| State | Used for | Managed by |
 |---|---|---|
-| آخرین تیک هر صندوق | تجمعی، جهش NAV، پر کردن شکاف | ابتدای هر روز معاملاتی پاک می‌شود |
-| رخدادهای فعال | ثبت لبه‌ای | از روی پرچم‌های آخرین تیک بازیابی می‌شود |
-| `hEven` فید | تشخیص فید منجمد | شمارنده‌ی چرخه‌های بدون تغییر |
+| Last tick per fund | Cumulative checks, NAV jump, gap-filling | Cleared at the start of each trading day |
+| Active occurrences | Edge logging | Recovered from the last tick's flags |
+| Feed `hEven` | Detecting a frozen feed | Counter of cycles without change |
 
-**راه‌اندازی دوباره:** اگر collector وسط روز restart شود، در اولین چرخه آخرین تیک هر صندوق از ClickHouse خوانده می‌شود (`LIMIT 1 BY ins_code`) و حالت از همان‌جا ادامه پیدا می‌کند. رخدادهای فعال از پرچم‌های همان تیک‌ها بازسازی می‌شوند تا گزارش تکراری ساخته نشود.
+**Restart:** if the collector restarts mid-day, on the first cycle the last tick for each fund is read back from ClickHouse (`LIMIT 1 BY ins_code`), and state resumes from there. Active occurrences are reconstructed from those same ticks' flags so duplicate log rows aren't created.
 
-**replay:** با یک validator تازه اجرا می‌شود و چرخه‌ها را به ترتیب زمان پردازش می‌کند، پس نتیجه همان است که collector زنده می‌ساخت. گزارش‌های کیفیت آن روز پیش از replay پاک می‌شوند تا تکراری نشوند.
+**replay:** runs with a fresh validator and processes cycles in time order, so the result matches what the live collector would have produced. That day's quality logs are cleared before replay to avoid duplicates.
 
-## گزارش روزانه
+## Daily report
 
 ```console
 $ tsetmc-viewer quality --date 2026-09-26
@@ -114,22 +114,22 @@ Data quality — 2026-09-26
     ...
 ```
 
-!!! note "اعداد بالا نمونه‌اند"
-    قالب خروجی واقعی است، اما اعداد تا اولین روز معاملاتی کامل تخمینی‌اند و پس از آن با خروجی واقعی جایگزین می‌شوند.
+!!! note "The numbers above are illustrative"
+    The output format is real, but the numbers are estimates until the first full trading day, after which they'll be replaced with actual output.
 
-کوئری‌های پشت گزارش (`storage/repository.py → quality_report`):
+The queries behind the report (`storage/repository.py → quality_report`):
 
 ```sql
--- کامل بودن: چه کسری از «صندوق × دقیقه»های مورد انتظار واقعاً دریافت شد
+-- Completeness: what fraction of expected "fund × minute" cells were actually received
 SELECT sum(received_funds) / sum(expected_funds) FROM collection_runs WHERE toDate(tick) = today();
 
--- سهم هر پرچم
+-- Share of each flag
 SELECT countIf(bitAnd(quality_flags, 256) != 0) / count() AS forward_filled_ratio
 FROM fund_ticks FINAL WHERE toDate(ts) = today();
 ```
 
-## آنچه عمداً انجام نمی‌شود
+## What is deliberately not done
 
-- **حذف ردیف‌های مشکوک.** حذف بی‌بازگشت است؛ پرچم بازگشت‌پذیر است.
-- **اصلاح بر اساس منبع دوم.** فیپیران در دسترس نیست ([منابع داده](02-data-sources.md)) و منبع دیگری برای مقایسه‌ی درون‌روز وجود ندارد.
-- **تشخیص تعطیلات رسمی از روی تقویم.** در روز تعطیل، بررسی `feed_stale` نبود داده‌ی تازه را نشان می‌دهد. فهرست تعطیلات در [گام‌های بعدی](10-limitations.md#گامهای-بعدی) آمده است.
+- **Deleting suspect rows.** Deletion is irreversible; flagging is reversible.
+- **Correcting against a second source.** Fipiran isn't available ([Data Sources](02-data-sources.md)), and there's no other source for intraday comparison.
+- **Detecting official holidays from a calendar.** On a holiday, the `feed_stale` check shows the lack of fresh data. The holiday list is covered in [Next Steps](10-limitations.md#next-steps).

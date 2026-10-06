@@ -1,60 +1,60 @@
-# ADR 0012 — بازسازی دقیقه‌های جاافتاده از ریز معاملات
+# ADR 0012 — Backfilling Missed Minutes from Trade-by-Trade Data
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده</span><span>تاریخ: پس از روز ۷</span><span>بر پایه‌ی اندازه‌گیری ۴ مهر ۱۴۰۵</span></div>
+<div class="adr-meta"><span>Status: Accepted</span><span>Date: After Day 7</span><span>Based on the 4 Mehr 1405 measurement</span></div>
 
-!!! abstract "خلاصه"
-    اگر collector دیر روشن شود، دقیقه‌های پیش از آن برای **قیمت، حجم، ارزش و تعداد معاملات** از ریز معاملات امروز (`Trade/GetTrade`) بازسازی می‌شوند؛ روزی یک بار و حدود ۱۰ ثانیه برای همه‌ی صندوق‌ها. داده‌ی بازسازی‌شده فقط وقتی ذخیره می‌شود که با تیک‌های زنده‌ای که collector همان روز نوشته **هم‌خوان** باشد، و در جدولی جدا می‌رود تا هیچ تحلیلی آن را با داده‌ی زنده اشتباه نگیرد. حقیقی/حقوقی، NAV و سفارش‌ها بازسازی نمی‌شوند، چون در ریز معاملات نیستند.
+!!! abstract "Summary"
+    If the collector starts late, the minutes before it started are reconstructed for **price, volume, value, and trade count** from today's trade-by-trade data (`Trade/GetTrade`); once a day, in about 10 seconds for all funds. Backfilled data is only stored when it **agrees** with the live ticks the collector wrote that same day, and it goes into a separate table so no analysis ever confuses it with live data. Real/legal-entity flow, NAV, and order book are not backfilled, since they are not in the trade-by-trade data.
 
-## زمینه
+## Context
 
-- داده‌ی دقیقه‌ای فقط از لحظه‌ای وجود داشت که collector روشن شده بود ([ADR 0003](0003-raw-first-ingestion.md)). کاربری که ساعت ۱۱:۳۰ سرویس را روشن کند، منحنی ۹:۰۰ تا ۱۱:۳۰ را نمی‌دید.
-- تصمیم اولیه («از آن استفاده نمی‌شود») بر یک اندازه‌گیری روز ۱ بود: ۲۲ مگابایت و ۱۱۰ ثانیه برای یک نماد. آن اندازه‌گیری روی چند نماد و بدون gzip بود.
-- `scripts/probe_backfill.py` آن را درست تکرار کرد ([نتایج](../02-data-sources.md#ریز-معاملات-روز-جاری-اندازهگیری-واقعی)): ۴۰ صندوق لایه‌بندی‌شده، **صفر خطا**، برون‌یابی **۲٫۳ مگابایت و حدود ۱۰ ثانیه** برای همه‌ی صندوق‌ها. دو endpoint دیگر برای امروز ۵۰۲ یا لیست خالی دادند.
-- همان اندازه‌گیری دو محدودیت نشان داد: (۱) ریز معاملات فقط زمان، قیمت و حجم دارد؛ (۲) در ۶ صندوق از ۴۰ زمان همه‌ی معاملات بعد از ۱۲:۰۰ ثبت شده بود، با اینکه جلسه از ۹:۰۰ باز بود.
+- Per-minute data only existed from the moment the collector was started ([ADR 0003](0003-raw-first-ingestion.md)). A user who started the service at 11:30 would not see the 9:00–11:30 curve.
+- The initial decision ("not used") was based on a Day 1 measurement: 22 MB and 110 seconds for a single symbol. That measurement was on a few symbols and without gzip.
+- `scripts/probe_backfill.py` repeated it properly ([Results](../02-data-sources.md#todays-trade-by-trade-data-real-world-measurement)): 40 funds, layered, **zero errors**, extrapolating to **2.3 MB and about 10 seconds** for all funds. The other two endpoints returned 502 or an empty list for today.
+- The same measurement showed two limitations: (1) trade-by-trade data only has time, price, and volume; (2) in 6 of the 40 funds, every trade's recorded time was after 12:00, even though the session had been open since 9:00.
 
-## تصمیم
+## Decision
 
 ```text
-پس از سومین چرخه‌ی موفق امروز (در پس‌زمینه، تا حلقه‌ی دقیقه‌ای عقب نیفتد)
-یا پس از بسته شدن بازار اگر در طول جلسه اجرا نشده بود:
-  برای هر صندوقی که اولین تیک زنده‌اش بعد از ۹:۰۱ است و امروز هنوز تصمیمی برایش ثبت نشده:
-    Trade/GetTrade  →  پاسخ خام در raw_snapshots
-    tape  = معاملات لغونشده، مرتب بر اساس زمان، با جمع تجمعی
-    check = حجم هر تیک زنده باید بین tape(ts − ۶۰ث) و tape(ts + ۶۰ث) باشد (±۱٪)
-    اگر ≥ ۹۰٪ تیک‌های زنده بخوانند  → دقیقه‌های ۹:۰۰ تا پیش از اولین تیک زنده در fund_ticks_backfill
-    وگرنه                            → rejected در intraday_backfill_log، هیچ چیز ذخیره نمی‌شود
+After today's third successful cycle (in the background, so the minute loop doesn't fall behind)
+or after market close if it hasn't run during the session:
+  For every fund whose first live tick is after 9:01 and that has no decision recorded for today yet:
+    Trade/GetTrade  →  raw response into raw_snapshots
+    tape  = trades deduplicated, sorted by time, with a running cumulative sum
+    check = each live tick's volume must fall between tape(ts − 60s) and tape(ts + 60s) (±1%)
+    if ≥ 90% of live ticks agree  → minutes from 9:00 up to the first live tick go into fund_ticks_backfill
+    otherwise                      → rejected in intraday_backfill_log, nothing is stored
 ```
 
-| تصمیم | دلیل |
+| Decision | Reason |
 |---|---|
-| **جدول جدا** (`fund_ticks_backfill`)، نه `fund_ticks` | ردیف بازسازی‌شده حقیقی/حقوقی، NAV و سفارش ندارد. اگر در `fund_ticks` با صفر پر می‌شد، نمودار ورود پول، حباب و همه‌ی تحلیل‌ها بی‌صدا غلط می‌شدند |
-| **بررسی با داده‌ی زنده‌ی خودمان** پیش از ذخیره | زمان معامله در بعضی صندوق‌ها قابل اعتماد نیست. به جای حدس زدن کدام صندوق‌ها، هر صندوق با تیک‌هایی که همان روز واقعاً دیده‌ایم سنجیده می‌شود |
-| بازه‌ی **±۶۰ ثانیه** در بررسی | تیکِ دقیقه‌ی ts چند ثانیه پس از ts گرفته می‌شود و خود دیده‌بان هم ممکن است چند ثانیه عقب باشد. بازه‌ی تنگ‌تر صندوق‌های درست را رد می‌کرد؛ خطای واقعی (معامله‌های ثبت‌شده بعد از ۱۲:۰۰) صدها برابر بزرگ‌تر است |
-| فقط **پیش از اولین تیک زنده** | داده‌ی زنده هیچ‌وقت جایگزین نمی‌شود؛ بازسازی فقط سوراخ را پر می‌کند |
-| پس از **سومین** چرخه‌ی موفق | بدون تیک زنده چیزی برای بررسی نیست؛ سه تیک برای بررسی کافی است و بازسازی را زیاد عقب نمی‌اندازد |
-| در **پس‌زمینه** | حدود ۱۰ ثانیه درخواست است؛ حلقه‌ی دقیقه‌ای نباید منتظر آن بماند. هر دو از همان سقف ۸ درخواست هم‌زمان استفاده می‌کنند |
-| **ثبت هر تصمیم** (`intraday_backfill_log`) | stored، rejected، no_trades یا error، با تعداد دقیقه‌های مقایسه‌شده و هم‌خوان. اجرای دوباره فقط errorها را دوباره امتحان می‌کند |
-| فقط برای **امروز** | `GetTrade` فقط معاملات روز جاری را دارد؛ روزهای قبل با این روش قابل بازسازی نیستند |
+| A **separate table** (`fund_ticks_backfill`), not `fund_ticks` | A backfilled row has no real/legal-entity flow, NAV, or order book. If it were filled with zeros in `fund_ticks`, the money-flow chart, the bubble chart, and every other analysis would be silently wrong |
+| **Checking against our own live data** before storing | Trade time is unreliable for some funds. Rather than guessing which funds, every fund is checked against ticks we actually saw that same day |
+| A **±60 second** window for checking | The tick for minute ts is captured a few seconds after ts, and the watcher itself may be a few seconds behind. A tighter window rejected correct funds; the real error (trades recorded after 12:00) is hundreds of times larger than that |
+| Only **before the first live tick** | Live data is never replaced; backfill only fills the gap |
+| After the **third** successful cycle | With no live tick there is nothing to check against; three ticks are enough to check, and it doesn't delay the backfill by much |
+| In the **background** | It's about 10 seconds of requests; the minute loop must not wait for it. Both use the same cap of 8 concurrent requests |
+| **Logging every decision** (`intraday_backfill_log`) | stored, rejected, no_trades, or error, with the count of minutes compared and matching. Re-running only retries errors |
+| Only for **today** | `GetTrade` only has today's trades; past days cannot be backfilled this way |
 
-در پنل، بخش بازسازی‌شده‌ی نمودار درون‌روز صفحه‌ی صندوق **خط‌چین** است و راهنمای آن می‌گوید «بازسازی از ریز معاملات». NAV و حباب در آن بخش خالی‌اند. نمودارهای سطح بازار (ورود پول حقیقی) تغییری نمی‌کنند.
+In the panel, the backfilled part of the fund page's intraday chart is **dashed**, and its tooltip says "backfilled from trade-by-trade data". NAV and the bubble chart are empty in that section. Market-level charts (real-entity money flow) are unchanged.
 
-## گزینه‌های ردشده
+## Rejected Options
 
-| گزینه | چرا نه |
+| Option | Why not |
 |---|---|
-| **صف (Celery/RQ) و چند worker** | با ۱۰ ثانیه کار در روز، صف فقط یک سرویس دیگر برای نگه‌داری اضافه می‌کرد. `asyncio.gather` با همان semaphore کافی است |
-| **نوشتن در `fund_ticks` با پرچم کیفیت** | هر کوئری‌ای که ورود پول یا NAV می‌خواند باید پرچم را می‌شناخت؛ یک کوئری فراموش‌شده یعنی عدد غلط در پنل |
-| **اعتماد به زمان معامله بدون بررسی** | اندازه‌گیری واقعی نشان داد برای حدود ۱۵٪ صندوق‌ها غلط است |
-| **`GetClosingPriceHistory` یا `GetTradeHistory`** | برای امروز ۵۰۲ یا لیست خالی برگرداندند |
+| **A queue (Celery/RQ) with multiple workers** | With 10 seconds of work per day, a queue would just be another service to maintain. `asyncio.gather` with the same semaphore is enough |
+| **Writing into `fund_ticks` with a quality flag** | Every query that reads money flow or NAV would need to know about the flag; one forgotten query means a wrong number in the panel |
+| **Trusting trade time without checking** | The real measurement showed it's wrong for about 15% of funds |
+| **`GetClosingPriceHistory` or `GetTradeHistory`** | Returned 502 or an empty list for today |
 
-## پیامدها
+## Consequences
 
-- ➕ روشن کردن collector وسط جلسه دیگر یعنی از دست دادن منحنی قیمت صبح نیست.
-- ➕ هر ردیف بازسازی‌شده قابل ردیابی است: پاسخ خام در `raw_snapshots` و تصمیم در `intraday_backfill_log`.
-- ➖ ورود پول حقیقی و NAV پیش از روشن شدن collector همچنان وجود ندارند. این محدودیت منبع داده است، نه این راه‌حل.
-- ⚠️ اگر collector پس از بسته شدن بازار روشن شود، فقط یک نقطه‌ی زنده (عکس پایانی) برای بررسی هست؛ بررسی ضعیف‌تر است ولی خطای «معاملات بعد از ۱۲:۰۰» را هنوز می‌گیرد.
-- ⚠️ آستانه‌ها (±۱٪، ۹۰٪ تیک‌ها) از یک روز اندازه‌گیری آمده‌اند. تعداد rejectedها در لاگ و معیار `tsetmc_backfill_funds_total{status}` دیده می‌شود؛ اگر صندوق‌های درست رد شوند، این عددها اولین نشانه‌اند.
+- ➕ Starting the collector mid-session no longer means losing the morning's price curve.
+- ➕ Every backfilled row is traceable: the raw response in `raw_snapshots` and the decision in `intraday_backfill_log`.
+- ➖ Real-entity money flow and NAV before the collector was started still do not exist. This is a data-source limitation, not something this solution can fix.
+- ⚠️ If the collector is started after market close, there is only one live point (the closing snapshot) to check against; the check is weaker, but it still catches the "trades recorded after 12:00" error.
+- ⚠️ The thresholds (±1%, 90% of ticks) came from a single day's measurement. The rejected count in the log and the `tsetmc_backfill_funds_total{status}` metric are where to look; if correct funds start being rejected, these numbers are the first sign.
 
-## بازبینی: «گزینه‌ی ردشده» فقط برای امروز رد بود
+## Review: the "Rejected Option" Was Only Rejected for Today
 
-جدول «گزینه‌های ردشده» بالا می‌گوید `GetClosingPriceHistory`/`GetTradeHistory` برای امروز ۵۰۲ یا لیست خالی دادند — این هنوز درست است و تغییری نکرده (متن ADR بازنویسی نمی‌شود). اما آن اندازه‌گیری فقط با `{date}` = امروز انجام شده بود؛ با یک تاریخ واقعیِ گذشته دوباره آزموده شد (کاربر، ۵ مهر ۱۴۰۵) و `GetClosingPriceHistory` برای ۱۴ از ۱۵ صندوق داده‌ی واقعی برگرداند. یعنی رد این endpoint فقط برای **امروز** درست بود، نه برای روزهای گذشته. این یافته منجر به یک تصمیم جدید و جدا شد، نه بازنویسی این تصمیم: [ADR 0013](0013-session-backfill.md).
+The "Rejected Options" table above says `GetClosingPriceHistory`/`GetTradeHistory` returned 502 or an empty list for today — this is still true and unchanged (the ADR text is not rewritten). But that measurement was only done with `{date}` = today; it was retested with a real past date (by the user, 5 Mehr 1405), and `GetClosingPriceHistory` returned real data for 14 of 15 funds. In other words, rejecting this endpoint was only correct **for today**, not for past days. This finding led to a new, separate decision, not a rewrite of this one: [ADR 0013](0013-session-backfill.md).

@@ -8,174 +8,174 @@ hide:
 
 # TSETMCViewer
 
-دریافت لحظه‌ای، پاک‌سازی، ذخیره‌سازی و تحلیل **صندوق‌های سرمایه‌گذاری قابل معامله‌ی سهامی** بورس و فرابورس تهران. هدف ساختن تصویری کلی از این بازار است، برای معامله‌گر و مدیر پرتفوی.
+Live ingestion, cleaning, storage, and analysis of **exchange-traded equity funds** on the Tehran Stock Exchange and Iran Fara Bourse. The goal is to build a clear, big-picture view of this market for traders and portfolio managers.
 
 <div class="hero-tags">
-<span>هر ۶۰ ثانیه</span><span>ClickHouse</span><span>FastAPI</span><span>React + ECharts</span><span>Docker</span><span>Python 3.12 · asyncio</span>
+<span>Every 60 seconds</span><span>ClickHouse</span><span>FastAPI</span><span>React + ECharts</span><span>Docker</span><span>Python 3.12 · asyncio</span>
 </div>
 
-[شروع از معماری](01-architecture.md){ .md-button .md-button--primary }
-[اجرای سرویس](08-runbook.md){ .md-button }
+[Start with the architecture](01-architecture.md){ .md-button .md-button--primary }
+[Run the service](08-runbook.md){ .md-button }
 
 </div>
 
-## این سرویس چه می‌کند؟
+## What does this service do?
 
 <div class="grid cards two" markdown>
 
--   :material-clock-fast:{ .lg .middle } __دریافت دقیقه‌ای__
+-   :material-clock-fast:{ .lg .middle } __Minute-by-minute ingestion__
 
     ---
 
-    در ساعات بازار، هر دقیقه قیمت، حجم، سفارش‌ها، معاملات حقیقی/حقوقی و NAV همه‌ی صندوق‌های سهامی از TSETMC دریافت می‌شود.
+    During market hours, price, volume, order book, retail/institutional trades, and NAV for every equity fund are fetched from TSETMC every minute.
 
--   :material-shield-check-outline:{ .lg .middle } __کنترل کیفیت__
-
-    ---
-
-    پس از هر دریافت، کامل بودن و درستی داده بررسی می‌شود. هر مشکل یا اصلاح می‌شود یا پرچم می‌خورد، و هیچ اصلاحی بی‌صدا انجام نمی‌شود.
-
--   :material-database-cog-outline:{ .lg .middle } __غنی‌سازی__
+-   :material-shield-check-outline:{ .lg .middle } __Quality control__
 
     ---
 
-    داده‌ی خام به شاخص‌هایی مثل حباب، ورود پول حقیقی، بازده و گردش معاملات تبدیل می‌شود.
+    After every fetch, data completeness and correctness are checked. Every issue is either corrected or flagged — no correction happens silently.
 
--   :material-chart-box-outline:{ .lg .middle } __تصویر بزرگ__
+-   :material-database-cog-outline:{ .lg .middle } __Enrichment__
 
     ---
 
-    نمودارهای پنل برای این ساخته شده‌اند که در چند ثانیه نشان دهند پول کجا می‌رود، کدام صندوق گران است و وضع کلی بازار صندوق‌ها چیست.
+    Raw data is turned into metrics such as premium/discount, retail money flow, returns, and turnover.
+
+-   :material-chart-box-outline:{ .lg .middle } __The big picture__
+
+    ---
+
+    The dashboard's charts are built to show, in a few seconds, where money is flowing, which funds are overpriced, and what the overall state of the fund market is.
 
 </div>
 
 <figure class="shot">
-<img src="assets/screens/overview-light.webp#only-light" alt="پنل">
-<img src="assets/screens/overview-dark.webp#only-dark" alt="پنل در پوسته‌ی تیره">
-<figcaption>پنل کاربری روی داده‌ی واقعی پایان جلسه‌ی ۱ مهر ۱۴۰۵. توضیح هر نمودار در <a href="06-dashboard.md">پنل و نمودارها</a> آمده است.</figcaption>
+<img src="assets/screens/overview-light.webp#only-light" alt="Dashboard">
+<img src="assets/screens/overview-dark.webp#only-dark" alt="Dashboard in dark theme">
+<figcaption>The dashboard on real end-of-session data from 1 Mehr 1405. Each chart is explained in <a href="06-dashboard.md">Dashboard and Charts</a>.</figcaption>
 </figure>
 
 <div class="kpis">
-  <div class="kpi"><b>۱۵۹</b><span>صندوق سهامی، بخشی، شاخصی و اهرمی زیر نظر</span></div>
-  <div class="kpi"><b>۱۰</b><span>بررسی کیفیت و ۱۳ پرچم روی هر ردیف دقیقه‌ای</span></div>
-  <div class="kpi"><b>۲٫۹ میلی‌ثانیه</b><span>زمان پاسخ API با کش (۳۴۹ درخواست در ثانیه)</span></div>
-  <div class="kpi"><b>۲۳۶</b><span>تست خودکار، پوشش ۸۹٪، CI با آزمون دود Docker</span></div>
+  <div class="kpi"><b>159</b><span>equity, sector, index, and leveraged funds tracked</span></div>
+  <div class="kpi"><b>10</b><span>quality checks and 13 flags per minute-level row</span></div>
+  <div class="kpi"><b>2.9 ms</b><span>API response time with cache (349 requests/second)</span></div>
+  <div class="kpi"><b>236</b><span>automated tests, 89% coverage, CI with Docker smoke test</span></div>
 </div>
 
-## الزامات پروژه و جای پاسخ هر کدام
+## Project requirements and where each is addressed
 
-| # | الزام | کجا پیاده شده | کجا توضیح داده شده |
+| # | Requirement | Where implemented | Where explained |
 |:-:|---|---|---|
-| ۱ | دریافت لحظه‌ای هر یک دقیقه برای همه‌ی صندوق‌های سهامی | `collector/service.py`، `pipeline/universe.py` | [معماری](01-architecture.md)، [ADR 0004](adr/0004-scheduling.md)، [ADR 0007](adr/0007-fund-identity.md) |
-| ۲ | ذخیره پس از هر دریافت | `storage/`، مایگریشن‌های `0001`–`0004` | [مدل داده](03-data-model.md)، [ADR 0001](adr/0001-clickhouse.md)، [ADR 0003](adr/0003-raw-first-ingestion.md) |
-| ۳ | بررسی کامل بودن و صحت، و پیش‌پردازش | `pipeline/validate.py`، `domain/quality.py` | [کیفیت داده](04-data-quality.md) |
-| ۴ | شناسایی داده‌ی ارائه‌دهنده، ساخت داده‌ی پایه‌ی تکمیلی و مرحله‌ی اضافه شدن هر کدام | `pipeline/transform.py`، `pipeline/history.py`، `domain/metrics.py` | [منابع داده](02-data-sources.md)، [منطق مالی](05-financial-logic.md) |
-| ۵ | پنل کاربری برای داده‌ی دریافتی و پردازش‌شده | `web/` (جدول صندوق‌ها، صفحه‌ی هر صندوق، کارت کیفیت) | [پنل و نمودارها](06-dashboard.md) |
-| ۶ | نمودارهای تحلیلی برای تصویر بزرگ | `web/src/charts/options.ts` | [پنل و نمودارها](06-dashboard.md) |
-| — | Docker و اجرا در هر محیط | `docker-compose.yml`، `docker/` | [اجرا و عملیات](08-runbook.md) |
-| — | کیفیت کد و ساختار مخزن | `tests/`، `.github/workflows/ci.yml` | [آزمون و مقاوم‌سازی](09-quality-engineering.md) |
-| — | پایش، هشدار و در دسترس بودن | `telemetry.py`، `monitoring/`، `collector/leadership.py` | [پایش و هشدار](11-monitoring.md)، [ADR 0009](adr/0009-observability.md)، [ADR 0010](adr/0010-high-availability.md) |
+| 1 | Live ingestion every minute for all equity funds | `collector/service.py`, `pipeline/universe.py` | [Architecture](01-architecture.md), [ADR 0004](adr/0004-scheduling.md), [ADR 0007](adr/0007-fund-identity.md) |
+| 2 | Storage after every fetch | `storage/`, migrations `0001`–`0004` | [Data Model](03-data-model.md), [ADR 0001](adr/0001-clickhouse.md), [ADR 0003](adr/0003-raw-first-ingestion.md) |
+| 3 | Completeness and correctness checks, and preprocessing | `pipeline/validate.py`, `domain/quality.py` | [Data Quality](04-data-quality.md) |
+| 4 | Identifying provider-supplied data, building supplementary base data, and the stage each is added at | `pipeline/transform.py`, `pipeline/history.py`, `domain/metrics.py` | [Data Sources](02-data-sources.md), [Financial Logic](05-financial-logic.md) |
+| 5 | User dashboard for fetched and processed data | `web/` (fund table, per-fund page, quality card) | [Dashboard and Charts](06-dashboard.md) |
+| 6 | Analytical charts for the big picture | `web/src/charts/options.ts` | [Dashboard and Charts](06-dashboard.md) |
+| — | Docker and running in any environment | `docker-compose.yml`, `docker/` | [Runbook and Operations](08-runbook.md) |
+| — | Code quality and repo structure | `tests/`, `.github/workflows/ci.yml` | [Testing and Hardening](09-quality-engineering.md) |
+| — | Monitoring, alerting, and availability | `telemetry.py`, `monitoring/`, `collector/leadership.py` | [Monitoring and Alerting](11-monitoring.md), [ADR 0009](adr/0009-observability.md), [ADR 0010](adr/0010-high-availability.md) |
 
-## از کجا شروع کنم؟
+## Where should I start?
 
 <div class="grid cards two" markdown>
 
--   :material-account-tie-outline: __ارزیاب فنی__
+-   :material-account-tie-outline: __Technical reviewer__
 
     ---
 
-    [معماری](01-architecture.md) ← [تصمیم‌های فنی](adr/index.md) ← [آزمون و مقاوم‌سازی](09-quality-engineering.md) ← [محدودیت‌ها](10-limitations.md). بخش‌های «بازبینی روز N» در ADRها نشان می‌دهند کجا تصمیمی با داده‌ی واقعی عوض شد.
+    [Architecture](01-architecture.md) ← [Technical Decisions](adr/index.md) ← [Testing and Hardening](09-quality-engineering.md) ← [Limitations](10-limitations.md). The "Day N review" sections in the ADRs show where a decision changed based on real data.
 
--   :material-chart-line: __معامله‌گر و مدیر پرتفوی__
-
-    ---
-
-    [پنل و نمودارها](06-dashboard.md) (روال یک‌دقیقه‌ای خواندن پنل) ← [منطق مالی](05-financial-logic.md) (تعریف هر عدد و یافته‌ی اهرمی‌ها) ← [کیفیت داده](04-data-quality.md).
-
--   :material-code-braces: __توسعه‌دهنده__
+-   :material-chart-line: __Trader and portfolio manager__
 
     ---
 
-    [اجرا و عملیات](08-runbook.md) ← [مدل داده](03-data-model.md) ← [API](07-api.md) ← [منابع داده](02-data-sources.md).
+    [Dashboard and Charts](06-dashboard.md) (the minute-by-minute routine for reading the dashboard) ← [Financial Logic](05-financial-logic.md) (the definition of every number and the finding on leveraged funds) ← [Data Quality](04-data-quality.md).
 
--   :material-server-outline: __اجراکننده‌ی سرویس__
+-   :material-code-braces: __Developer__
 
     ---
 
-    [اجرا و عملیات](08-runbook.md): VPN و شبکه، راه‌اندازی خارج از ساعات بازار، تعطیلات و عیب‌یابی ← [پایش و هشدار](11-monitoring.md): داشبوردها، هشدار در «بله» و راهنمای رفع هر هشدار.
+    [Runbook and Operations](08-runbook.md) ← [Data Model](03-data-model.md) ← [API](07-api.md) ← [Data Sources](02-data-sources.md).
+
+-   :material-server-outline: __Service operator__
+
+    ---
+
+    [Runbook and Operations](08-runbook.md): VPN and networking, startup outside market hours, holidays, and troubleshooting ← [Monitoring and Alerting](11-monitoring.md): dashboards, alerting to "Bale", and a runbook for resolving each alert.
 
 </div>
 
-## معماری در یک نگاه
+## Architecture at a glance
 
 <figure class="diagram">
-<img src="assets/diagrams/architecture.svg" alt="معماری کلی سرویس">
-<figcaption>جریان داده از راست به چپ: منبع ← دریافت و پردازش ← ذخیره‌سازی ← API و کش ← پنل. رویداد «تیک جدید» (خط نارنجی) کش را باطل می‌کند و داده‌ی تازه را به پنل می‌فرستد.</figcaption>
+<img src="assets/diagrams/architecture.svg" alt="Overall service architecture">
+<figcaption>Data flow from left to right: source → ingestion and processing → storage → API and cache → dashboard. The "new tick" event (orange line) invalidates the cache and pushes fresh data to the dashboard.</figcaption>
 </figure>
 
-## نقشه‌ی مستندات
+## Documentation map
 
 <div class="grid cards two" markdown>
 
--   :material-sitemap-outline: __[معماری](01-architecture.md)__
+-   :material-sitemap-outline: __[Architecture](01-architecture.md)__
 
-    اجزای سیستم، اصول طراحی و جریان یک چرخه‌ی دریافت.
+    System components, design principles, and the flow of a single ingestion cycle.
 
--   :material-database-arrow-down-outline: __[منابع داده](02-data-sources.md)__
+-   :material-database-arrow-down-outline: __[Data Sources](02-data-sources.md)__
 
-    چه داده‌ای را ارائه‌دهنده می‌دهد، چه چیزی را ما می‌سازیم و در کدام مرحله. همراه با اندازه‌گیری واقعی endpointها.
+    What the provider supplies, what we build ourselves, and at which stage — with real-world measurements of the endpoints.
 
--   :material-table-large: __[مدل داده](03-data-model.md)__
+-   :material-table-large: __[Data Model](03-data-model.md)__
 
-    جدول‌ها، کلیدها، موتورهای ClickHouse و پرچم‌های کیفیت.
+    Tables, keys, ClickHouse engines, and quality flags.
 
--   :material-shield-check-outline: __[کیفیت داده](04-data-quality.md)__
+-   :material-shield-check-outline: __[Data Quality](04-data-quality.md)__
 
-    ده بررسی در هر چرخه، روش اصلاح هر کدام و دلیل انتخاب آن.
+    Ten checks per cycle, how each is corrected, and why it was chosen that way.
 
--   :material-finance: __[منطق مالی](05-financial-logic.md)__
+-   :material-finance: __[Financial Logic](05-financial-logic.md)__
 
-    حباب، خالص دارایی، ورود پول حقیقی، بازده‌ها. همراه با یافته‌ی NAV صندوق‌های اهرمی.
+    Premium/discount, net asset value, retail money flow, returns — plus the finding on leveraged-fund NAV.
 
--   :material-chart-areaspline: __[پنل و نمودارها](06-dashboard.md)__
+-   :material-chart-areaspline: __[Dashboard and Charts](06-dashboard.md)__
 
-    هر نمودار به کدام سؤال معامله‌گر و مدیر پرتفوی جواب می‌دهد، و چرا این شکل و این رنگ.
+    Which question each chart answers for the trader and portfolio manager, and why that shape and that color.
 
 -   :material-api: __[API](07-api.md)__
 
-    endpointها، قرارداد پاسخ، هدرهای کش و رویدادهای زنده.
+    Endpoints, the response contract, cache headers, and live events.
 
--   :material-scale-balance: __[تصمیم‌های فنی (ADR)](adr/index.md)__
+-   :material-scale-balance: __[Technical Decisions (ADR)](adr/index.md)__
 
-    هر انتخاب مهم با زمینه، گزینه‌های ردشده و پیامدهایش.
+    Every major choice, with context, rejected alternatives, and consequences.
 
--   :material-console: __[اجرا و عملیات](08-runbook.md)__
+-   :material-console: __[Runbook and Operations](08-runbook.md)__
 
-    اجرا با Docker، نکات شبکه (VPN)، پایش و عیب‌یابی.
+    Running with Docker, networking notes (VPN), monitoring, and troubleshooting.
 
--   :material-shield-bug-outline: __[آزمون و مقاوم‌سازی](09-quality-engineering.md)__
+-   :material-shield-bug-outline: __[Testing and Hardening](09-quality-engineering.md)__
 
-    راهبرد تست، CI با آزمون دود، رفتار در برابر خرابی‌ها و آزمون بار کش.
+    Test strategy, CI with a smoke test, failure-mode behavior, and cache load testing.
 
--   :material-chart-bell-curve: __[پایش و هشدار](11-monitoring.md)__
+-   :material-chart-bell-curve: __[Monitoring and Alerting](11-monitoring.md)__
 
-    Prometheus، چهار داشبورد Grafana، ۱۶ هشدار با تست واحد و رساندن هشدار به «بله»؛ راهنمای رفع هر هشدار.
+    Prometheus, four Grafana dashboards, 16 alerts with unit tests, and alert delivery to "Bale"; a runbook for resolving each alert.
 
--   :material-map-marker-path: __[محدودیت‌ها و گام‌های بعدی](10-limitations.md)__
+-   :material-map-marker-path: __[Limitations and Next Steps](10-limitations.md)__
 
-    آنچه سرویس نمی‌داند یا نمی‌کند، و ترتیب پیشنهادی کامل کردن آن.
+    What the service doesn't know or doesn't do, and the suggested order for completing it.
 
 </div>
 
-## وضعیت پیشرفت
+## Progress Status
 
-| روز | محدوده | وضعیت |
+| Day | Scope | Status |
 |:---:|---|:---:|
-| ۱ | اسکلت مخزن، Docker، طرح‌واره‌ی ClickHouse، کلاینت‌های API، دریافت خام | <span class="pill done">انجام شد</span> |
-| ۲ | پارس پاسخ‌ها، فهرست صندوق‌ها، چرخه‌ی دقیقه‌ای کامل، replay | <span class="pill done">انجام شد</span> |
-| ۳ | اعتبارسنجی و پیش‌پردازش، گزارش کیفیت | <span class="pill done">انجام شد</span> |
-| ۴ | منطق مالی، تاریخچه، API، کش Redis و SSE | <span class="pill done">انجام شد</span> |
-| ۵ | پنل و نمودارهای تحلیلی، کانتینر nginx | <span class="pill done">انجام شد</span> |
-| ۶ | تست، CI، مقاوم‌سازی، آزمون بار | <span class="pill done">انجام شد</span> |
-| ۷ | محور زمان چپ‌به‌راست، وضعیت collector در پنل، محدودیت‌ها، تکمیل مستندات | <span class="pill done">انجام شد</span> |
-| + | تقویم تعطیلات، حباب وزنی و سری زمانی حباب، پایش با Grafana و هشدار، رهبری collector و چند worker برای API | <span class="pill done">انجام شد</span> |
+| 1 | Repo skeleton, Docker, ClickHouse schema, API clients, raw ingestion | <span class="pill done">Done</span> |
+| 2 | Response parsing, fund list, full minute cycle, replay | <span class="pill done">Done</span> |
+| 3 | Validation and preprocessing, quality report | <span class="pill done">Done</span> |
+| 4 | Financial logic, history, API, Redis cache, and SSE | <span class="pill done">Done</span> |
+| 5 | Dashboard and analytical charts, nginx container | <span class="pill done">Done</span> |
+| 6 | Testing, CI, hardening, load testing | <span class="pill done">Done</span> |
+| 7 | Left-to-right time axis, collector status in the dashboard, limitations, completing the docs | <span class="pill done">Done</span> |
+| + | Holiday calendar, weighted premium and premium time series, Grafana monitoring and alerting, collector leadership and multiple API workers | <span class="pill done">Done</span> |

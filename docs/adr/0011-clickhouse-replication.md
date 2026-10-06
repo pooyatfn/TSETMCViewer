@@ -1,77 +1,77 @@
-# ADR 0011 — ریپلیکای ClickHouse: دو نسخه، یک Keeper
+# ADR 0011 — ClickHouse Replication: Two Replicas, One Keeper
 
-<div class="adr-meta"><span>وضعیت: پذیرفته‌شده؛ اختیاری، مکمل ADR 0010</span><span>تاریخ: پس از روز ۷</span></div>
+<div class="adr-meta"><span>Status: Accepted; optional, complements ADR 0010</span><span>Date: After day 7</span></div>
 
-!!! abstract "خلاصه"
-    یک profile اختیاری در compose (`ha-storage`) دو نسخه‌ی ClickHouse با موتور **`ReplicatedMergeTree`** بالا می‌آورد که از طریق یک **ClickHouse Keeper** هماهنگ می‌شوند: هر `INSERT` روی یکی، طبق زمان‌بندی خودِ ClickHouse به دیگری هم می‌رسد. این profile **کنار** سرویس تک‌نسخه‌ای پیش‌فرض اجرا می‌شود، نه به‌جای آن، و صریحاً **جایگزین چند میزبان نیست**: هر دو نسخه و Keeper روی همان یک ماشین‌اند، پس مرگ آن ماشین هر دو را با هم می‌برد. آنچه واقعاً می‌گیرید مقاومت در برابر مرگ **یک کانتینر** یا خرابی دیسک یک نسخه است، نه مرگ سرور.
+!!! abstract "Summary"
+    An optional compose profile (`ha-storage`) brings up two ClickHouse replicas using the **`ReplicatedMergeTree`** engine, coordinated through a single **ClickHouse Keeper**: every `INSERT` on one reaches the other too, on ClickHouse's own schedule. This profile runs **alongside** the default single-replica service, not in place of it, and is explicitly **not a substitute for multi-host**: both replicas and the Keeper are on the same single machine, so the death of that machine takes both down together. What you actually get is resilience against the death of **one container** or a disk failure on one replica, not against the death of the server.
 
-## زمینه
+## Context
 
-- [ADR 0010](0010-high-availability.md) می‌گوید صریحاً: «سرویس‌ها هنوز روی یک میزبان اجرا می‌شوند. اگر ClickHouse از کار بیفتد، کل سیستم می‌ایستد» و آن را خارج از محدوده می‌گذارد. این ADR همان محدودیت را با هزینه‌ی متوسط تا حدی می‌بندد.
-- برخلاف collector (که [ADR 0010](0010-high-availability.md#رهبری-collector) با یک lease در Redis رهبری می‌کند) و API (که چند worker مستقل با یک single-flight توزیع‌شده اجرا می‌کند)، **ClickHouse یک وضعیت پایدار است**: نمی‌توان «دو نسخه‌ی مستقل که هرکدام جدا می‌نویسند» گفت، چون داده‌شان دیگر یکی نیست. نسخه‌برداری این‌جا باید در سطح **موتور جدول** باشد.
-- این پروژه ۷ روز مهلت داشت و ClickHouse چندمیزبانی واقعی (Keeper با کوروم، نسخه‌ها روی ماشین‌های جدا) چند روز کار جداگانه است. سوال اصلی این ADR: «چقدر از مکانیزم را می‌شود درست، تست‌شده و صادقانه نشان داد، بدون ادعای HA کامل؟»
+- [ADR 0010](0010-high-availability.md) states explicitly: "services still run on a single host. If ClickHouse goes down, the whole system stops," and puts that out of scope. This ADR partially closes that same gap, at moderate cost.
+- Unlike the collector (which [ADR 0010](0010-high-availability.md#collector-leadership) elects a leader for, via a lease in Redis) and the API (which runs several independent workers with a distributed single-flight), **ClickHouse is stateful**: you can't have "two independent replicas that each write separately," because their data would no longer be the same. Replication here has to live at the **table-engine level**.
+- This project had a 7-day deadline, and real multi-host ClickHouse (a quorum-backed Keeper, replicas on separate machines) is several days of work on its own. This ADR's core question: "how much of the mechanism can be shown correctly, tested, and honestly, without claiming full HA?"
 
-## تصمیم
+## Decision
 
-### چرا یک شارد، دو ریپلیکا (نه شاردینگ)
+### Why one shard, two replicas (not sharding)
 
-داده حجمی نیست (۴۳۲ صندوق، چند مگابایت در دقیقه) و کوئری‌ها روی کل بازار یک‌جا اجرا می‌شوند (نقشه‌ی بازار، جدول کامل). شاردینگ کوئری‌ها را پیچیده می‌کرد بدون هیچ فایده‌ای؛ آنچه لازم بود فقط **یک نسخه‌ی پشتیبان از همان داده** بود.
+The data isn't high-volume (432 funds, a few megabytes per minute), and queries run over the whole market at once (market map, full table). Sharding would have complicated queries for no benefit; what was needed was just **one backup copy of the same data**.
 
-### مکانیزم
+### Mechanism
 
 ```text
-Keeper (یک نسخه)  ←—— هماهنگی DDL و متادیتای ریپلیکاسیون ——→  clickhouse-0
-                                                              clickhouse-1
-migrate یک بار روی clickhouse-0:
+Keeper (one instance)  ←—— coordinates DDL and replication metadata ——→  clickhouse-0
+                                                                          clickhouse-1
+migrate runs once, on clickhouse-0:
   CREATE TABLE ... ON CLUSTER 'tsetmc_cluster' ENGINE = ReplicatedReplacingMergeTree(...)
-  → Keeper همین DDL را روی clickhouse-1 هم اجرا می‌کند (صف DDL توزیع‌شده)
-هر INSERT روی هرکدام از دو نسخه → به نسخه‌ی دیگر می‌رسد (مکانیزم ReplicatedMergeTree، نه نوشتن دوباره از کلاینت)
+  → Keeper runs the same DDL on clickhouse-1 too (distributed DDL queue)
+Every INSERT on either replica → reaches the other (ReplicatedMergeTree's own mechanism, not a client-side re-write)
 ```
 
-| تصمیم | دلیل |
+| Decision | Reason |
 |---|---|
-| ریپلیکاسیون در **موتور جدول**، نه در کد | `ReplicatedReplacingMergeTree`/`ReplicatedMergeTree`/`ReplicatedAggregatingMergeTree` این کار را با تضمین‌های ClickHouse انجام می‌دهند؛ نوشتن آن در پایتون یعنی بازتولید چیزی که پایگاه داده از قبل درست ساخته |
-| مسیر جدول با ماکروهای درون‌ساخت `{database}`/`{table}` + ماکروهای پیکربندی `{shard}`/`{replica}` | یک الگوی مسیر برای همه‌ی جدول‌ها، بدون نوشتن نام هر جدول در جایی دیگر؛ کپی‌پیست/فراموشی یک جدول را غیرممکن می‌کند |
-| بازنویسی به `Replicated*` فقط **هنگام اجرا** در `migrate()`، نه در فایل‌های SQL | مایگریشن‌ها «هرگز پس از اجرا ویرایش نمی‌شوند» و checksum آن را اجرا می‌کند ([ADR 0005](0005-migrations.md)). اگر موتور را در خود فایل عوض می‌کردیم، checksum فایل عوض می‌شد و نصب‌های موجود با خطا متوقف می‌شدند |
-| `CLICKHOUSE_CLUSTER` خالی به‌طور پیش‌فرض | نصب تک‌نسخه‌ای (که هنوز پیش‌فرض است) هیچ تغییری نمی‌بیند؛ کلاستر کاملاً اختیاری و opt-in است |
-| Keeper به‌جای ZooKeeper جدا | باینری ClickHouse خودش `clickhouse keeper` را دارد؛ یک ایمیج کمتر، یک نقطه‌ی خرابی کمتر برای فهمیدن |
-| profile جدا (`ha-storage`)، نه جایگزینی سرویس `clickhouse` | سرویس تک‌نسخه‌ای پیش‌فرض دست‌نخورده می‌ماند؛ کسی که این profile را روشن نمی‌کند هیچ چیزی در تجربه‌ی «یک فرمان» عوض نمی‌بیند |
+| Replication at the **table engine** level, not in code | `ReplicatedReplacingMergeTree`/`ReplicatedMergeTree`/`ReplicatedAggregatingMergeTree` do this with ClickHouse's own guarantees; writing it in Python would mean reproducing something the database already does correctly |
+| Table paths with the built-in `{database}`/`{table}` macros plus config macros `{shard}`/`{replica}` | One path pattern for every table, without writing each table's name anywhere else; makes copy-paste mistakes or forgetting a table impossible |
+| Rewriting to `Replicated*` only **at runtime** in `migrate()`, not in the SQL files | Migrations are "never edited after they've run," and checksums enforce that ([ADR 0005](0005-migrations.md)). If we changed the engine in the file itself, the file's checksum would change and existing installs would fail with an error |
+| `CLICKHOUSE_CLUSTER` empty by default | The single-replica install (still the default) sees no change at all; the cluster is fully optional and opt-in |
+| Keeper instead of a separate ZooKeeper | The ClickHouse binary already has `clickhouse keeper` built in; one fewer image, one fewer failure point to understand |
+| A separate profile (`ha-storage`), not a replacement for the `clickhouse` service | The default single-replica service stays untouched; anyone who doesn't enable this profile sees nothing different in the "one command" experience |
 
-### رفتن به سراغ ریپلیکاها
+### Switching to the replicas
 
-فعال کردن این profile به‌تنهایی داده‌ی برنامه را جابه‌جا نمی‌کند — دو دیتابیس مستقل کنار هم بالا می‌آیند. برای واقعاً استفاده از ریپلیکاها:
+Turning on this profile alone doesn't move the application's data — two independent databases come up side by side. To actually use the replicas:
 
 ```bash
 docker compose --profile ha-storage up -d clickhouse-keeper clickhouse-0 clickhouse-1 migrate-ha
 ```
 
-سپس در `.env`: `CLICKHOUSE_HOST=clickhouse-0` و `CLICKHOUSE_CLUSTER=tsetmc_cluster`، و `docker compose up -d --force-recreate api collector` تا با تنظیم جدید بالا بیایند. سرویس `clickhouse` پیش‌فرض دیگر لازم نیست؛ نگه‌داشتنش یعنی یک پایگاه داده‌ی بی‌استفاده روشن است.
+Then in `.env`: `CLICKHOUSE_HOST=clickhouse-0` and `CLICKHOUSE_CLUSTER=tsetmc_cluster`, and `docker compose up -d --force-recreate api collector` so they come up with the new settings. The default `clickhouse` service is no longer needed; keeping it running means an unused database sitting idle.
 
-بررسی این‌که ریپلیکاسیون واقعاً کار می‌کند:
+To verify replication is actually working:
 
 ```bash
-# در clickhouse-0 چیزی بنویسید، در clickhouse-1 هم باید ظاهر شود (چند ثانیه تأخیر عادی است)
+# Write something on clickhouse-0; it should also appear on clickhouse-1 (a few seconds' delay is normal)
 curl -u default:tsetmc 'http://127.0.0.1:8125/?query=SELECT count() FROM tsetmc.funds'
-# یک نسخه را متوقف کنید؛ برنامه (روی clickhouse-0) باید کار کند
+# Stop one replica; the app (on clickhouse-0) should keep working
 docker compose stop clickhouse-1
 ```
 
-## گزینه‌های ردشده
+## Rejected Options
 
-| گزینه | چرا نه |
+| Option | Why not |
 |---|---|
-| **بدون اجرای این ADR، فقط backup دوره‌ای** | backup از قطعی محافظت نمی‌کند، فقط از دست رفتن کامل داده؛ سرویس همچنان تا بازیابی از کار می‌افتد |
-| **۳ نسخه‌ی Keeper برای کوروم واقعی** | روی یک میزبان بی‌معنی است (اگر میزبان بمیرد، هر سه با هم می‌میرند)؛ کوروم واقعی به میزبان‌های جدا نیاز دارد که خارج از محدوده‌ی این پروژه است |
-| **شاردینگ به‌جای ریپلیکاسیون** | داده حجمی نیست؛ شاردینگ فقط کوئری‌های روی کل بازار را کند و پیچیده می‌کرد |
-| **load balancer/proxy جلوی دو نسخه (مثل chproxy)** | برای failover خودکار لازم است، ولی یک سرویس دیگر برای نگه‌داشتن اضافه می‌کند. فعلاً جابه‌جایی با `CLICKHOUSE_HOST` دستی است؛ اگر این profile پیش‌فرض شود، proxy گام بعدی طبیعی است |
-| **بازنویسی موتور در خود فایل‌های مایگریشن (به‌جای rewrite هنگام اجرا)** | checksum مایگریشن‌های اعمال‌شده را نامعتبر می‌کرد ([ADR 0005](0005-migrations.md)) |
+| **Not implementing this ADR, just periodic backups** | Backups don't protect against downtime, only against total data loss; the service would still be down until restore |
+| **3 Keeper replicas for a real quorum** | Meaningless on a single host (if the host dies, all three die together); a real quorum needs separate hosts, which is out of scope for this project |
+| **Sharding instead of replication** | The data isn't high-volume; sharding would only slow down and complicate market-wide queries |
+| **A load balancer/proxy in front of the two replicas (e.g. chproxy)** | Needed for automatic failover, but adds one more service to maintain. For now, switching is manual via `CLICKHOUSE_HOST`; if this profile becomes the default, a proxy is the natural next step |
+| **Rewriting the engine in the migration files themselves (instead of a runtime rewrite)** | Would invalidate the checksums of already-applied migrations ([ADR 0005](0005-migrations.md)) |
 
-## پیامدها
+## Consequences
 
-- ➕ مرگ یک نسخه‌ی ClickHouse دیگر یعنی از دست رفتن سرویس نیست؛ نسخه‌ی دیگر همان داده را دارد.
-- ➕ `CLICKHOUSE_CLUSTER=""` پیش‌فرض یعنی هیچ نصب موجودی تغییر رفتار نمی‌بیند؛ فعال‌سازی کاملاً opt-in است.
-- ➖ کد و پیکربندی بیشتر برای نگه‌داری: سه سرویس compose، سه فایل XML، یک تابع بازنویسی در `migrate.py`.
-- ⚠️ **این HA واقعی نیست.** هر دو نسخه و Keeper روی یک میزبان‌اند؛ مرگ میزبان هر سه را با هم می‌برد. عنوان صادقانه‌اش «مقاومت در برابر مرگ یک کانتینر یا خرابی دیسک یک نسخه» است، نه «مقاومت در برابر خرابی سرور» (که هدف [محدودیت‌های عملیاتی](../10-limitations.md#محدودیتهای-عملیاتی) است).
-- ⚠️ Keeper تک‌نسخه‌ای خودش یک نقطه‌ی خرابی برای **هماهنگی** است (نه برای داده: داده روی دیسک هر دو نسخه می‌ماند). اگر Keeper پایین باشد، ریپلیکاسیون و DDL جدید متوقف می‌شوند، ولی نوشتن و خواندن مستقیم روی هر نسخه ادامه دارد.
-- ⚠️ بدون proxy جلوی دو نسخه، جابه‌جایی به نسخه‌ی دیگر دستی است (`CLICKHOUSE_HOST` در `.env`، سپس ری‌استارت `api`/`collector`).
-- ⚠️ CI این profile را اجرا نمی‌کند (نه Keeper و نه دو نسخه در راه‌انداز آزمون دود)؛ درستی بازنویسی SQL با آزمون واحد روی `clusterize()` پوشش داده شده (`tests/test_migrate.py`)، نه با یک کلاستر واقعی.
+- ➕ The death of one ClickHouse replica no longer means a service outage; the other replica has the same data.
+- ➕ `CLICKHOUSE_CLUSTER=""` by default means no existing install sees any behavior change; enabling it is fully opt-in.
+- ➖ More code and config to maintain: three compose services, three XML files, one rewrite function in `migrate.py`.
+- ⚠️ **This is not real HA.** Both replicas and the Keeper are on one host; the host's death takes all three down together. The honest label is "resilience against the death of one container or a disk failure on one replica," not "resilience against server failure" (which is the goal of [Operational Limitations](../10-limitations.md#operational-limitations)).
+- ⚠️ The single-instance Keeper is itself a single point of failure for **coordination** (not for data: data lives on disk on both replicas). If the Keeper is down, replication and new DDL stop, but direct reads and writes on each replica continue.
+- ⚠️ Without a proxy in front of the two replicas, switching to the other replica is manual (`CLICKHOUSE_HOST` in `.env`, then restarting `api`/`collector`).
+- ⚠️ CI doesn't run this profile (neither the Keeper nor two replicas in the smoke-test setup); the correctness of the SQL rewrite is covered by a unit test on `clusterize()` (`tests/test_migrate.py`), not by a real cluster.
